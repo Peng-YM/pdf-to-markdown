@@ -13,3 +13,6 @@ Cargo.lock
 # Temporary files
 *.tmp
 *.bak
+
+# pi coding agent
+.pi/
