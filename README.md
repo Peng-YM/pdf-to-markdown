@@ -1,5 +1,26 @@
 # PDF to Markdown Converter
 
+<p align="center">
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/stargazers">
+    <img src="https://img.shields.io/github/stars/Peng-YM/pdf-to-markdown?style=flat-square" alt="Stars">
+  </a>
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/network/members">
+    <img src="https://img.shields.io/github/forks/Peng-YM/pdf-to-markdown?style=flat-square" alt="Forks">
+  </a>
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/issues">
+    <img src="https://img.shields.io/github/issues/Peng-YM/pdf-to-markdown?style=flat-square" alt="Issues">
+  </a>
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Peng-YM/pdf-to-markdown?style=flat-square" alt="License">
+  </a>
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/releases">
+    <img src="https://img.shields.io/github/v/release/Peng-YM/pdf-to-markdown?style=flat-square" alt="Release">
+  </a>
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/releases">
+    <img src="https://img.shields.io/github/downloads/Peng-YM/pdf-to-markdown/total?style=flat-square" alt="Downloads">
+  </a>
+</p>
+
 使用模块化架构的 PDF 转 Markdown 命令行工具，支持多个文档解析服务提供商。专为 AI 代理友好设计。
 
 ## 特性
