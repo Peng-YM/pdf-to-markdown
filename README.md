@@ -38,13 +38,19 @@ cargo build --release
 ### 基本使用
 
 ```bash
-# 使用默认提供商 (PaddleOCR)
+# 使用默认提供商 (PaddleOCR) - 本地文件
 export PADDLE_OCR_API_KEY="your_api_key"
 pdf-to-markdown parse document.pdf
 
-# 或使用智谱 AI
+# 或使用智谱 AI - 本地文件
 export ZHIPU_API_KEY="your_api_key"
 pdf-to-markdown parse --provider zhipu/lite document.pdf
+
+# 使用 URL 直接下载 PDF
+pdf-to-markdown parse https://example.com/document.pdf
+
+# 使用 arxiv abs 链接 (自动转换为 pdf 链接)
+pdf-to-markdown parse https://arxiv.org/abs/2301.07041
 ```
 
 ### 完整选项
@@ -64,8 +70,14 @@ pdf-to-markdown parse \
 #### `metadata` - 获取 PDF 元数据
 
 ```bash
-# 获取元数据并以人类可读格式显示
+# 获取元数据并以人类可读格式显示 - 本地文件
 pdf-to-markdown metadata document.pdf
+
+# 获取元数据 - 使用 URL
+pdf-to-markdown metadata https://example.com/document.pdf
+
+# 获取元数据 - 使用 arxiv abs 链接 (自动转换为 pdf)
+pdf-to-markdown metadata https://arxiv.org/abs/2301.07041
 
 # 输出 JSON 格式
 pdf-to-markdown metadata document.pdf --json
@@ -77,8 +89,14 @@ pdf-to-markdown metadata document.pdf -o metadata.json
 #### `parse` - 解析 PDF 为 Markdown
 
 ```bash
-# 基本使用
+# 基本使用 - 本地文件
 pdf-to-markdown parse document.pdf
+
+# 使用 URL 直接下载 PDF
+pdf-to-markdown parse https://example.com/document.pdf
+
+# 使用 arxiv abs 链接 (自动转换为 pdf 链接)
+pdf-to-markdown parse https://arxiv.org/abs/2301.07041
 
 # 指定输出目录
 pdf-to-markdown parse document.pdf -o ./output/

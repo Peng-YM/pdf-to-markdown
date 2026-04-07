@@ -6,12 +6,13 @@ use indicatif::{ProgressBar, ProgressStyle};
 use pdf_to_markdown::error::{anyhow, Result};
 use pdf_to_markdown::provider::traits::*;
 use pdf_to_markdown::provider::ProviderType;
-use pdf_to_markdown::utils::PdfMetadata;
+use pdf_to_markdown::utils::{is_url, normalize_arxiv_url, download_pdf, PdfMetadata};
 use pdf_to_markdown::Converter;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use tempfile::NamedTempFile;
 
 /// Exit codes for the CLI
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,14 +67,26 @@ struct DryRunResultJson {
 #[command(version = "0.3.0")]
 #[command(after_help = "\
 EXAMPLES:
-    # Get PDF metadata and table of contents
+    # Get PDF metadata and table of contents (local file)
     pdf-to-markdown metadata document.pdf
+    
+    # Get PDF metadata from URL
+    pdf-to-markdown metadata https://example.com/document.pdf
+    
+    # Get PDF metadata from arxiv (auto-converts abs link to pdf)
+    pdf-to-markdown metadata https://arxiv.org/abs/2301.07041
     
     # Get metadata as JSON
     pdf-to-markdown metadata document.pdf --json
     
-    # Parse entire PDF to Markdown using default provider (paddleocr)
+    # Parse entire PDF to Markdown using default provider (local file)
     pdf-to-markdown parse document.pdf
+    
+    # Parse PDF from URL
+    pdf-to-markdown parse https://example.com/document.pdf
+    
+    # Parse PDF from arxiv (auto-converts abs link to pdf)
+    pdf-to-markdown parse https://arxiv.org/abs/2301.07041
     
     # Parse to specific output directory
     pdf-to-markdown parse document.pdf -o ./output/
@@ -111,9 +124,9 @@ struct Cli {
 enum Commands {
     /// Get PDF metadata (title, author, table of contents, etc.)
     Metadata {
-        /// Input PDF file path
-        #[arg(value_name = "PDF_FILE")]
-        input: PathBuf,
+        /// Input PDF file path or URL
+        #[arg(value_name = "PDF_FILE_OR_URL")]
+        input: String,
 
         /// Output metadata to JSON file (optional)
         #[arg(short, long, value_name = "JSON_FILE")]
@@ -130,9 +143,9 @@ enum Commands {
 
     /// Parse PDF to Markdown using AI provider
     Parse {
-        /// Input PDF file path
-        #[arg(value_name = "PDF_FILE")]
-        input: PathBuf,
+        /// Input PDF file path or URL
+        #[arg(value_name = "PDF_FILE_OR_URL")]
+        input: String,
 
         /// Output directory (default: current directory)
         #[arg(short, long, value_name = "OUTPUT_DIR")]
@@ -239,36 +252,63 @@ async fn run() -> Result<()> {
     }
 }
 
+/// Helper to get a PDF path, downloading from URL if needed
+async fn get_pdf_path(input: &str, quiet: bool, json: bool) -> Result<(PathBuf, Option<NamedTempFile>)> {
+    if is_url(input) {
+        let normalized_url = normalize_arxiv_url(input);
+        if !quiet && !json {
+            if normalized_url != input {
+                println!("{}", format!("🔄 Converting arxiv abs link: {}", input).cyan());
+                println!("{}", format!("📥 Downloading from: {}", normalized_url).cyan());
+            } else {
+                println!("{}", format!("📥 Downloading PDF from: {}", normalized_url).cyan());
+            }
+        }
+        let temp_file = download_pdf(&normalized_url).await?;
+        let path = temp_file.path().to_path_buf();
+        Ok((path, Some(temp_file)))
+    } else {
+        let path = PathBuf::from(input);
+        if !path.exists() {
+            return Err(anyhow!("Input file does not exist: {}", path.display()));
+        }
+        Ok((path, None))
+    }
+}
+
 async fn handle_metadata(
-    input: &PathBuf,
+    input: &str,
     output: Option<&Path>,
     json: bool,
     quiet: bool,
 ) -> Result<()> {
-    if !input.exists() {
-        if json {
-            let error_json = ErrorJson {
-                success: false,
-                error_code: ExitCode::ResourceNotFound as i32,
-                error_type: "resource_not_found".to_string(),
-                message: format!("Input file does not exist: {}", input.display()),
-                suggestion: Some(
-                    "Check that the file path is correct and the file exists".to_string(),
-                ),
-            };
-            println!("{}", serde_json::to_string_pretty(&error_json)?);
-            std::process::exit(ExitCode::ResourceNotFound as i32);
+    let (pdf_path, _temp_file) = match get_pdf_path(input, quiet, json).await {
+        Ok(p) => p,
+        Err(e) => {
+            if json {
+                let error_json = ErrorJson {
+                    success: false,
+                    error_code: ExitCode::ResourceNotFound as i32,
+                    error_type: "resource_not_found".to_string(),
+                    message: format!("{}", e),
+                    suggestion: Some(
+                        "Check that the file path or URL is correct".to_string(),
+                    ),
+                };
+                println!("{}", serde_json::to_string_pretty(&error_json)?);
+                std::process::exit(ExitCode::ResourceNotFound as i32);
+            }
+            return Err(e);
         }
-        return Err(anyhow!("Input file does not exist: {}", input.display()));
-    }
+    };
 
-    let metadata = PdfMetadata::from_pdf(input)?;
+    let metadata = PdfMetadata::from_pdf(&pdf_path)?;
 
     if json {
         let json_output = serde_json::to_string_pretty(&metadata)?;
         println!("{}", json_output);
     } else if !quiet {
-        println!("{}", format!("📄 Extracting metadata from: {}", input.display()).cyan());
+        println!("{}", format!("📄 Extracting metadata from: {}", input).cyan());
         println!();
         print_metadata(&metadata);
     }
@@ -331,7 +371,7 @@ fn print_metadata(metadata: &PdfMetadata) {
 }
 
 async fn handle_parse(
-    input: &PathBuf,
+    input: &str,
     output_dir: Option<&Path>,
     pages: Option<&str>,
     provider: Option<&str>,
@@ -347,22 +387,52 @@ async fn handle_parse(
 ) -> Result<()> {
     use pdf_to_markdown::provider::paddleocr::PaddleOcrConfig;
 
-    if !input.exists() {
-        if json {
-            let error_json = ErrorJson {
-                success: false,
-                error_code: ExitCode::ResourceNotFound as i32,
-                error_type: "resource_not_found".to_string(),
-                message: format!("Input file does not exist: {}", input.display()),
-                suggestion: Some(
-                    "Check that the file path is correct and the file exists".to_string(),
-                ),
-            };
-            println!("{}", serde_json::to_string_pretty(&error_json)?);
-            std::process::exit(ExitCode::ResourceNotFound as i32);
+    // For dry run, we don't need to download the file
+    let (pdf_path, _temp_file) = if dry_run {
+        if is_url(input) {
+            // Just use a dummy path for dry run with URL
+            (PathBuf::from("url.pdf"), None)
+        } else {
+            let path = PathBuf::from(input);
+            if !path.exists() {
+                if json {
+                    let error_json = ErrorJson {
+                        success: false,
+                        error_code: ExitCode::ResourceNotFound as i32,
+                        error_type: "resource_not_found".to_string(),
+                        message: format!("Input file does not exist: {}", path.display()),
+                        suggestion: Some(
+                            "Check that the file path is correct and the file exists".to_string(),
+                        ),
+                    };
+                    println!("{}", serde_json::to_string_pretty(&error_json)?);
+                    std::process::exit(ExitCode::ResourceNotFound as i32);
+                }
+                return Err(anyhow!("Input file does not exist: {}", path.display()));
+            }
+            (path, None)
         }
-        return Err(anyhow!("Input file does not exist: {}", input.display()));
-    }
+    } else {
+        match get_pdf_path(input, quiet, json).await {
+            Ok(p) => p,
+            Err(e) => {
+                if json {
+                    let error_json = ErrorJson {
+                        success: false,
+                        error_code: ExitCode::ResourceNotFound as i32,
+                        error_type: "resource_not_found".to_string(),
+                        message: format!("{}", e),
+                        suggestion: Some(
+                            "Check that the file path or URL is correct".to_string(),
+                        ),
+                    };
+                    println!("{}", serde_json::to_string_pretty(&error_json)?);
+                    std::process::exit(ExitCode::ResourceNotFound as i32);
+                }
+                return Err(e);
+            }
+        }
+    };
 
     let provider_type = if let Some(provider_str) = provider {
         ProviderType::from_str(provider_str)
@@ -402,7 +472,7 @@ async fn handle_parse(
         if json {
             let dry_run_result = DryRunResultJson {
                 dry_run: true,
-                input_file: input.display().to_string(),
+                input_file: input.to_string(),
                 output_dir: output_dir.display().to_string(),
                 markdown_file: output_md_path.display().to_string(),
                 images_dir: output_images_dir.display().to_string(),
@@ -414,7 +484,7 @@ async fn handle_parse(
         } else if !quiet {
             println!("{}", "📋 Dry Run: What would happen".bold());
             println!("{}", "─".repeat(50));
-            println!("  {}", format!("Input: {}", input.display()).cyan());
+            println!("  {}", format!("Input: {}", input).cyan());
             println!("  {}", format!("Output dir: {}", output_dir.display()).cyan());
             println!("  {}", format!("Provider: {}", provider_type.as_str()).cyan());
             if let Some(pages) = pages {
@@ -488,7 +558,7 @@ async fn handle_parse(
     std::fs::create_dir_all(&output_images_dir)?;
 
     if !quiet && !json {
-        println!("{}", format!("📄 Input: {}", input.display()).cyan());
+        println!("{}", format!("📄 Input: {}", input).cyan());
         println!("{}", format!("📁 Output dir: {}", output_dir.display()).cyan());
 
         let provider_display = match &provider_type {
@@ -551,7 +621,7 @@ async fn handle_parse(
                 page_ranges,
             };
             converter
-                .convert(input, &output_dir, &config, move |update| {
+                .convert(&pdf_path, &output_dir, &config, move |update| {
                     let pb = pb_clone.lock().unwrap();
                     pb.set_message(update.message);
                     if let Some(total) = update.total {
@@ -574,7 +644,7 @@ async fn handle_parse(
                 use_chart_recognition: if use_chart_recognition { Some(true) } else { None },
             };
             converter
-                .convert(input, &output_dir, &config, move |update| {
+                .convert(&pdf_path, &output_dir, &config, move |update| {
                     let pb = pb_clone.lock().unwrap();
                     pb.set_message(update.message);
                 })
@@ -591,7 +661,7 @@ async fn handle_parse(
     if json {
         let parse_result = ParseResultJson {
             success: true,
-            input_file: input.display().to_string(),
+            input_file: input.to_string(),
             output_dir: output_dir.display().to_string(),
             markdown_file: output_md_path.display().to_string(),
             images_dir: output_images_dir.display().to_string(),

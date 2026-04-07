@@ -1,9 +1,11 @@
 use crate::error::{anyhow, Result};
 use lopdf::{Document, Object, ObjectId};
+use reqwest::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use tempfile::NamedTempFile;
 
 pub fn ensure_dir_exists(path: &Path) -> Result<()> {
     if !path.exists() {
@@ -335,6 +337,38 @@ fn parse_pdf_date(pdf_date: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Check if a string is a URL
+pub fn is_url(s: &str) -> bool {
+    s.starts_with("http://") || s.starts_with("https://")
+}
+
+/// Convert arxiv abs link to pdf link if needed
+pub fn normalize_arxiv_url(url: &str) -> String {
+    // Check for arxiv.org/abs/xxx and convert to arxiv.org/pdf/xxx
+    let re = regex::Regex::new(r"^https?://arxiv\.org/abs/([\w\.\/]+)$").unwrap();
+    if let Some(captures) = re.captures(url) {
+        let path = captures.get(1).unwrap().as_str();
+        return format!("https://arxiv.org/pdf/{}.pdf", path);
+    }
+    url.to_string()
+}
+
+/// Download a PDF from URL and save to a temporary file
+pub async fn download_pdf(url: &str) -> Result<NamedTempFile> {
+    let client = Client::new();
+    let response = client.get(url).send().await?;
+    
+    if !response.status().is_success() {
+        return Err(anyhow!("Failed to download PDF: HTTP status {}", response.status()));
+    }
+    
+    let bytes = response.bytes().await?;
+    let mut temp_file = NamedTempFile::new()?;
+    std::io::Write::write_all(&mut temp_file, &bytes)?;
+    
+    Ok(temp_file)
 }
 
 /// Split a PDF, keeping only the specified pages (1-based)
