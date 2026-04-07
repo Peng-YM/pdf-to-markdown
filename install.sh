@@ -59,7 +59,7 @@ get_latest_release() {
     if [ -z "$tag" ]; then
         print_error "Failed to get latest release tag"
         print_info "API response: $response"
-        exit 1
+        return 1
     fi
     echo "$tag"
 }
@@ -81,18 +81,19 @@ download_binary() {
     print_info "Downloading ${filename}..."
     print_info "URL: ${url}"
     
+    local download_success=0
     if command -v curl &> /dev/null; then
-        curl -L -o "${BINARY_NAME}${extension}" "${url}"
+        curl -L -o "${BINARY_NAME}${extension}" "${url}" && download_success=1
     elif command -v wget &> /dev/null; then
-        wget -O "${BINARY_NAME}${extension}" "${url}"
+        wget -O "${BINARY_NAME}${extension}" "${url}" && download_success=1
     else
         print_error "Neither curl nor wget is installed"
-        exit 1
+        return 1
     fi
     
-    if [ ! -f "${BINARY_NAME}${extension}" ]; then
+    if [ ${download_success} -ne 1 ] || [ ! -f "${BINARY_NAME}${extension}" ]; then
         print_error "Failed to download binary"
-        exit 1
+        return 1
     fi
     
     echo "${BINARY_NAME}${extension}"
@@ -137,11 +138,25 @@ main() {
     
     local os=$(detect_os)
     local arch=$(detect_arch)
-    local tag=${1:-$(get_latest_release)}
     
     print_info "Detected OS: ${os}"
     print_info "Detected architecture: ${arch}"
-    print_info "Release tag: ${tag}"
+    
+    local tag
+    if [ -n "$1" ]; then
+        tag="$1"
+        print_info "Using specified tag: ${tag}"
+    else
+        tag=$(get_latest_release)
+        print_info "Latest release tag: ${tag}"
+    fi
+    
+    if [ -z "${tag}" ]; then
+        print_error "No release tag available"
+        print_info "You can manually specify a tag: ./install.sh v0.2.0"
+        exit 1
+    fi
+    
     echo ""
     
     # Create temp directory
@@ -150,6 +165,10 @@ main() {
     
     # Download
     local binary=$(download_binary "${os}" "${arch}" "${tag}")
+    if [ -z "${binary}" ] || [ ! -f "${binary}" ]; then
+        print_error "Failed to download binary"
+        exit 1
+    fi
     
     # Install
     install_binary "${binary}"
