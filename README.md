@@ -33,9 +33,11 @@ wget -qO- https://raw.githubusercontent.com/pengym/pdf-extractor/main/install.sh
 
 ```bash
 git clone https://github.com/pengym/pdf-extractor.git
-cd pdf-extractor/pdf-to-markdown
+cd pdf-extractor
 cargo build --release
 ```
+
+更多开发相关信息请参考 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 使用
 
@@ -109,90 +111,9 @@ pdf-to-markdown parse document.pdf --quiet
 pdf-to-markdown parse document.pdf --overwrite
 ```
 
-## 开发
+## 开发与贡献
 
-### 构建
-
-```bash
-make build
-```
-
-### 安装到本地
-
-```bash
-make install
-```
-
-### 发布构建
-
-```bash
-make release
-```
-
-### 代码检查
-
-```bash
-# 格式化
-make fmt
-
-# Clippy 检查
-make clippy
-
-# Cargo check
-make check
-
-# 运行测试
-make test
-```
-
-## 架构设计
-
-本项目采用模块化架构，便于扩展新的服务提供商：
-
-```
-pdf-to-markdown/
-├── src/
-│   ├── lib.rs                    # 库入口
-│   ├── main.rs                   # CLI 入口
-│   ├── error.rs                  # 错误处理
-│   ├── converter.rs              # 转换协调器
-│   ├── utils.rs                  # 工具函数
-│   └── provider/                 # 提供商模块
-│       ├── mod.rs                # 工厂模式
-│       ├── traits.rs             # 核心 trait 定义
-│       ├── zhipu/                # 智谱 AI 实现
-│       └── paddleocr/            # PaddleOCR 实现
-```
-
-### 核心 Trait
-
-```rust
-#[async_trait::async_trait]
-pub trait DocumentProvider: Send + Sync {
-    fn name(&self) -> &'static str;
-    
-    async fn parse_document(
-        &self,
-        file_path: &Path,
-        config: &dyn ProviderConfig,
-        progress_cb: Box<dyn FnMut(ProgressUpdate) + Send>,
-    ) -> Result<ParseResult>;
-}
-```
-
-### 支持的提供商
-
-- **PaddleOCR** - 默认提供商
-- **智谱 AI (Zhipu)** - 支持 lite/expert/prime 三种模式
-
-## 扩展新的提供商
-
-要添加新的提供商（如阿里云、百度），只需：
-
-1. 在 `src/provider/` 下创建新目录
-2. 实现 `DocumentProvider` trait
-3. 在 `ProviderType` 枚举中添加新类型
-4. 在 `create_provider()` 工厂函数中添加对应逻辑
+更多开发相关信息、架构设计和如何扩展新提供商，请参考 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## AI 代理友好设计
 
