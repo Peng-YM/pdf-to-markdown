@@ -149,7 +149,8 @@ fn extract_outlines(
     if let Ok(catalog) = doc.catalog() {
         if let Ok(outlines_ref) = catalog.get(b"Outlines") {
             if let Ok(outlines_id) = outlines_ref.as_reference() {
-                if let Ok(outlines_dict) = doc.get_object(outlines_id).and_then(|obj| obj.as_dict()) {
+                if let Ok(outlines_dict) = doc.get_object(outlines_id).and_then(|obj| obj.as_dict())
+                {
                     if let Ok(first_ref) = outlines_dict.get(b"First") {
                         collect_outline_items(doc, first_ref, 0, &mut toc, page_map, dest_map);
                     }
@@ -196,11 +197,7 @@ fn collect_outline_items(
             }
 
             if !title.is_empty() {
-                toc.push(TocEntry {
-                    title,
-                    level,
-                    page,
-                });
+                toc.push(TocEntry { title, level, page });
             }
 
             if let Ok(first_ref) = item_dict.get(b"First") {
@@ -271,10 +268,8 @@ fn extract_page_number(
     // 先看看 action_obj 是不是引用，去取目标对象
     let target_dict = if let Ok(action_id) = action_obj.as_reference() {
         doc.get_object(action_id).and_then(|o| o.as_dict()).ok()
-    } else if let Ok(dict) = action_obj.as_dict() {
-        Some(dict)
     } else {
-        None
+        action_obj.as_dict().ok()
     };
 
     let d_value = target_dict.and_then(|dict| dict.get(b"D").ok())?;
@@ -293,10 +288,7 @@ fn extract_page_number(
     None
 }
 
-fn extract_page_from_array(
-    array: &[Object],
-    page_map: &HashMap<ObjectId, u32>,
-) -> Option<u32> {
+fn extract_page_from_array(array: &[Object], page_map: &HashMap<ObjectId, u32>) -> Option<u32> {
     if !array.is_empty() {
         if let Ok(page_obj_id) = array[0].as_reference() {
             return page_map.get(&page_obj_id).copied();
@@ -306,22 +298,18 @@ fn extract_page_from_array(
 }
 
 fn decode_pdf_string(bytes: &[u8]) -> String {
-    if bytes.starts_with(&[0xFE, 0xFF]) {
-        if bytes.len() >= 4 {
-            let utf16_bytes: Vec<u16> = bytes[2..]
-                .chunks_exact(2)
-                .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
-                .collect();
-            return String::from_utf16_lossy(&utf16_bytes);
-        }
-    } else if bytes.starts_with(&[0xFF, 0xFE]) {
-        if bytes.len() >= 4 {
-            let utf16_bytes: Vec<u16> = bytes[2..]
-                .chunks_exact(2)
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                .collect();
-            return String::from_utf16_lossy(&utf16_bytes);
-        }
+    if bytes.starts_with(&[0xFE, 0xFF]) && bytes.len() >= 4 {
+        let utf16_bytes: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16_lossy(&utf16_bytes);
+    } else if bytes.starts_with(&[0xFF, 0xFE]) && bytes.len() >= 4 {
+        let utf16_bytes: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16_lossy(&utf16_bytes);
     }
 
     String::from_utf8_lossy(bytes).into_owned()
@@ -352,7 +340,7 @@ fn parse_pdf_date(pdf_date: &str) -> Option<String> {
 /// Split a PDF, keeping only the specified pages (1-based)
 pub fn split_pdf(input_path: &Path, output_path: &Path, ranges: &[(u32, u32)]) -> Result<()> {
     let mut doc = Document::load(input_path)?;
-    
+
     // 1. 收集要保留的页码（1-based）
     let mut page_nums_to_keep = Vec::new();
     for &(start, end) in ranges {
@@ -360,19 +348,19 @@ pub fn split_pdf(input_path: &Path, output_path: &Path, ranges: &[(u32, u32)]) -
             page_nums_to_keep.push(page_num);
         }
     }
-    
+
     if page_nums_to_keep.is_empty() {
         return Err(anyhow!("No pages selected for extraction"));
     }
-    
+
     page_nums_to_keep.sort();
     page_nums_to_keep.dedup();
-    
+
     // 2. 获取所有页面和 Catalog
     let page_map = doc.get_pages();
     let catalog = doc.catalog()?;
     let pages_id = catalog.get(b"Pages")?.as_reference()?;
-    
+
     // 3. 找出需要保留的页面对象 ID
     let mut page_ids_to_keep = Vec::new();
     for page_num in &page_nums_to_keep {
@@ -380,33 +368,28 @@ pub fn split_pdf(input_path: &Path, output_path: &Path, ranges: &[(u32, u32)]) -
             page_ids_to_keep.push(page_id);
         }
     }
-    
+
     if page_ids_to_keep.is_empty() {
         return Err(anyhow!("No valid pages found for extraction"));
     }
-    
+
     // 4. 获取 Pages 字典，更新 Kids 和 Count
     let pages_dict = doc.get_dictionary(pages_id)?;
     let mut pages_dict = pages_dict.clone();
-    
+
     // 更新 Kids - 只保留需要的页面引用
-    let kids: Vec<Object> = page_ids_to_keep
-        .iter()
-        .map(|&id| Object::Reference(id))
-        .collect();
-    
+    let kids: Vec<Object> = page_ids_to_keep.iter().map(|&id| Object::Reference(id)).collect();
+
     pages_dict.set("Kids", Object::Array(kids));
     pages_dict.set("Count", page_ids_to_keep.len() as i64);
-    
+
     // 替换 Pages 字典
     doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
-    
+
     // 5. 保存修改后的 PDF
-    
+
     doc.renumber_objects();
     doc.save(output_path)?;
-    
+
     Ok(())
 }
-
-

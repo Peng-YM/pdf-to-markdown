@@ -1,4 +1,3 @@
-
 use super::models::*;
 use crate::error::{anyhow, Result};
 use reqwest::multipart;
@@ -25,16 +24,10 @@ pub async fn submit_job(
 
     let _data = [
         ("model", MODEL.to_string()),
-        (
-            "optionalPayload",
-            serde_json::to_string(optional_payload)?,
-        ),
+        ("optionalPayload", serde_json::to_string(optional_payload)?),
     ];
 
-    let file_name = file_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("document.pdf");
+    let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("document.pdf");
 
     let file_bytes = tokio::fs::read(file_path).await?;
     let part = multipart::Part::bytes(file_bytes)
@@ -43,38 +36,22 @@ pub async fn submit_job(
 
     let form = multipart::Form::new()
         .text("model", MODEL.to_string())
-        .text(
-            "optionalPayload",
-            serde_json::to_string(optional_payload)?,
-        )
+        .text("optionalPayload", serde_json::to_string(optional_payload)?)
         .part("file", part);
 
-    let response = client
-        .post(JOB_URL)
-        .headers(headers)
-        .multipart(form)
-        .send()
-        .await?;
+    let response = client.post(JOB_URL).headers(headers).multipart(form).send().await?;
 
     let status = response.status();
     if !status.is_success() {
         let text = response.text().await?;
-        return Err(anyhow!(
-            "Job submission failed: status {}, response: {}",
-            status,
-            text
-        ));
+        return Err(anyhow!("Job submission failed: status {}, response: {}", status, text));
     }
 
     let result: JobSubmissionResponse = response.json().await?;
     Ok(result.data.job_id)
 }
 
-pub async fn get_job_status(
-    client: &Client,
-    api_key: &str,
-    job_id: &str,
-) -> Result<JobStatusData> {
+pub async fn get_job_status(client: &Client, api_key: &str, job_id: &str) -> Result<JobStatusData> {
     let headers = {
         let mut h = reqwest::header::HeaderMap::new();
         h.insert(
@@ -90,11 +67,7 @@ pub async fn get_job_status(
     let status = response.status();
     if !status.is_success() {
         let text = response.text().await?;
-        return Err(anyhow!(
-            "Job status failed: status {}, response: {}",
-            status,
-            text
-        ));
+        return Err(anyhow!("Job status failed: status {}, response: {}", status, text));
     }
 
     let result: JobStatusResponse = response.json().await?;
@@ -106,11 +79,7 @@ pub async fn download_jsonl(client: &Client, json_url: &str) -> Result<String> {
     let status = response.status();
     if !status.is_success() {
         let text = response.text().await?;
-        return Err(anyhow!(
-            "JSONL download failed: status {}, response: {}",
-            status,
-            text
-        ));
+        return Err(anyhow!("JSONL download failed: status {}, response: {}", status, text));
     }
     Ok(response.text().await?)
 }
@@ -120,11 +89,7 @@ pub async fn download_image(client: &Client, image_url: &str) -> Result<Vec<u8>>
     let status = response.status();
     if !status.is_success() {
         let text = response.text().await?;
-        return Err(anyhow!(
-            "Image download failed: status {}, response: {}",
-            status,
-            text
-        ));
+        return Err(anyhow!("Image download failed: status {}, response: {}", status, text));
     }
     Ok(response.bytes().await?.to_vec())
 }

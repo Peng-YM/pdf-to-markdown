@@ -8,9 +8,9 @@ macro_rules! debug_print {
     };
 }
 
-pub mod provider;
 pub mod converter;
 pub mod error;
+pub mod provider;
 pub mod utils;
 
 pub use converter::Converter;

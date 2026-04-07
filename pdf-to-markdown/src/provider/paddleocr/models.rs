@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -44,8 +43,10 @@ pub struct ExtractProgress {
     #[serde(rename = "extractedPages")]
     pub extracted_pages: Option<i32>,
     #[serde(rename = "startTime")]
+    #[allow(dead_code)]
     pub start_time: Option<String>,
     #[serde(rename = "endTime")]
+    #[allow(dead_code)]
     pub end_time: Option<String>,
 }
 

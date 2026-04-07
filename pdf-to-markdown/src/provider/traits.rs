@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::error::Result;
 use tempfile::TempDir;
@@ -15,11 +15,7 @@ pub struct ProgressUpdate {
 
 impl ProgressUpdate {
     pub fn new(message: String) -> Self {
-        Self {
-            message,
-            current: 0,
-            total: None,
-        }
+        Self { message, current: 0, total: None }
     }
 }
 
@@ -27,7 +23,7 @@ impl ProgressUpdate {
 pub struct ParseResult {
     pub markdown: String,
     pub images: HashMap<String, PathBuf>, // image_name -> temp_path
-    pub temp_dir: Option<TempDir>, // holds the temp dir for images
+    pub temp_dir: Option<TempDir>,        // holds the temp dir for images
 }
 
 pub trait ProviderConfig: Send + Sync {

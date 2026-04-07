@@ -22,10 +22,8 @@ impl Converter {
         config: &dyn ProviderConfig,
         progress_cb: impl FnMut(ProgressUpdate) + Send + 'static,
     ) -> Result<ParseResult> {
-        let mut result = self
-            .provider
-            .parse_document(input_path, config, Box::new(progress_cb))
-            .await?;
+        let mut result =
+            self.provider.parse_document(input_path, config, Box::new(progress_cb)).await?;
 
         if let Ok(metadata) = PdfMetadata::from_pdf(input_path) {
             let frontmatter = metadata.to_yaml_frontmatter();

@@ -1,4 +1,3 @@
-
 mod api;
 mod models;
 
@@ -79,10 +78,7 @@ impl DocumentProvider for PaddleOcrProvider {
             let tmp_dir = tempdir()?;
             let split_pdf_path = tmp_dir.path().join("split.pdf");
 
-            progress_cb(ProgressUpdate::new(format!(
-                "Splitting PDF to pages {:?}",
-                ranges
-            )));
+            progress_cb(ProgressUpdate::new(format!("Splitting PDF to pages {:?}", ranges)));
 
             utils::split_pdf(file_path, &split_pdf_path, ranges)?;
 
@@ -108,12 +104,10 @@ impl DocumentProvider for PaddleOcrProvider {
         // 提交任务
         progress_cb(ProgressUpdate::new("Submitting OCR job...".to_string()));
 
-        let job_id = submit_job(&self.client, &self.api_key, &input_path, &optional_payload).await?;
+        let job_id =
+            submit_job(&self.client, &self.api_key, &input_path, &optional_payload).await?;
 
-        progress_cb(ProgressUpdate::new(format!(
-            "Job submitted, job ID: {}",
-            job_id
-        )));
+        progress_cb(ProgressUpdate::new(format!("Job submitted, job ID: {}", job_id)));
 
         // 轮询任务状态
         let mut json_url: Option<String> = None;
@@ -187,7 +181,8 @@ impl DocumentProvider for PaddleOcrProvider {
         for (line_idx, line) in lines.iter().enumerate() {
             let line_result: JsonlLine = serde_json::from_str(line)?;
 
-            for (layout_idx, layout) in line_result.result.layout_parsing_results.iter().enumerate() {
+            for (layout_idx, layout) in line_result.result.layout_parsing_results.iter().enumerate()
+            {
                 // 保存 Markdown 文本，替换图片引用
                 let mut md_text = layout.markdown.text.clone();
 
@@ -197,7 +192,8 @@ impl DocumentProvider for PaddleOcrProvider {
 
                     // 把路径里的 / 替换成 _，避免创建子目录
                     let safe_img_name = img_path.replace("/", "_");
-                    let img_filename = format!("image_{}_{}_{}", line_idx, layout_idx, safe_img_name);
+                    let img_filename =
+                        format!("image_{}_{}_{}", line_idx, layout_idx, safe_img_name);
                     let img_path_on_disk = output_temp_dir.path().join(&img_filename);
                     tokio::fs::write(&img_path_on_disk, img_bytes).await?;
 
@@ -213,7 +209,8 @@ impl DocumentProvider for PaddleOcrProvider {
 
                         // 把路径里的 / 替换成 _，避免创建子目录
                         let safe_img_name = img_name.replace("/", "_");
-                        let img_filename = format!("output_{}_{}_{}", line_idx, layout_idx, safe_img_name);
+                        let img_filename =
+                            format!("output_{}_{}_{}", line_idx, layout_idx, safe_img_name);
                         let img_path_on_disk = output_temp_dir.path().join(&img_filename);
                         tokio::fs::write(&img_path_on_disk, img_bytes).await?;
 
@@ -228,10 +225,6 @@ impl DocumentProvider for PaddleOcrProvider {
         // 合并所有 Markdown 文本
         let combined_markdown = markdown_texts.join("\n\n---\n\n");
 
-        Ok(ParseResult {
-            markdown: combined_markdown,
-            images,
-            temp_dir: Some(output_temp_dir),
-        })
+        Ok(ParseResult { markdown: combined_markdown, images, temp_dir: Some(output_temp_dir) })
     }
 }

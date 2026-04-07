@@ -1,3 +1,5 @@
+#![allow(clippy::ptr_arg, clippy::too_many_arguments)]
+
 use clap::Parser;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -8,6 +10,7 @@ use pdf_to_markdown::utils::PdfMetadata;
 use pdf_to_markdown::Converter;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 /// Exit codes for the CLI
@@ -18,6 +21,7 @@ enum ExitCode {
     GeneralFailure = 1,
     UsageError = 2,
     ResourceNotFound = 3,
+    #[allow(dead_code)]
     PermissionDenied = 4,
     Conflict = 5,
 }
@@ -110,70 +114,70 @@ enum Commands {
         /// Input PDF file path
         #[arg(value_name = "PDF_FILE")]
         input: PathBuf,
-        
+
         /// Output metadata to JSON file (optional)
         #[arg(short, long, value_name = "JSON_FILE")]
         output: Option<PathBuf>,
-        
+
         /// Output result as JSON to stdout
         #[arg(long)]
         json: bool,
-        
+
         /// Quiet mode: only output essential information
         #[arg(short, long)]
         quiet: bool,
     },
-    
+
     /// Parse PDF to Markdown using AI provider
     Parse {
         /// Input PDF file path
         #[arg(value_name = "PDF_FILE")]
         input: PathBuf,
-        
+
         /// Output directory (default: current directory)
         #[arg(short, long, value_name = "OUTPUT_DIR")]
         output_dir: Option<PathBuf>,
-        
+
         /// Page ranges to parse (e.g., 1-5,10,15-20)
         #[arg(long, value_name = "PAGES")]
         pages: Option<String>,
-        
+
         /// Provider: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime (default: paddleocr)
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
-        
+
         /// API Key (can also be set via ZHIPU_API_KEY, PADDLE_OCR_API_KEY, or PROVIDER_API_KEY environment variable)
         #[arg(short = 'k', long, value_name = "API_KEY")]
         api_key: Option<String>,
-        
+
         /// PaddleOCR: Use document orientation classification
         #[arg(long)]
         use_doc_orientation_classify: bool,
-        
+
         /// PaddleOCR: Use document unwarping
         #[arg(long)]
         use_doc_unwarping: bool,
-        
+
         /// PaddleOCR: Use layout detection
         #[arg(long)]
         use_layout_detection: bool,
-        
+
         /// PaddleOCR: Use chart recognition
         #[arg(long)]
         use_chart_recognition: bool,
-        
+
         /// Output result as JSON to stdout
         #[arg(long)]
         json: bool,
-        
+
         /// Quiet mode: only output essential information
         #[arg(short, long)]
         quiet: bool,
-        
+
         /// Dry run: preview what would happen without executing
         #[arg(long)]
         dry_run: bool,
-        
+
         /// Overwrite existing output files without confirmation
         #[arg(long)]
         overwrite: bool,
@@ -195,7 +199,7 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
-    
+
     match cli.command {
         Commands::Metadata { input, output, json, quiet } => {
             handle_metadata(&input, output.as_deref(), json, quiet).await
@@ -229,12 +233,18 @@ async fn run() -> Result<()> {
                 quiet,
                 dry_run,
                 overwrite,
-            ).await
+            )
+            .await
         }
     }
 }
 
-async fn handle_metadata(input: &PathBuf, output: Option<&Path>, json: bool, quiet: bool) -> Result<()> {
+async fn handle_metadata(
+    input: &PathBuf,
+    output: Option<&Path>,
+    json: bool,
+    quiet: bool,
+) -> Result<()> {
     if !input.exists() {
         if json {
             let error_json = ErrorJson {
@@ -242,16 +252,18 @@ async fn handle_metadata(input: &PathBuf, output: Option<&Path>, json: bool, qui
                 error_code: ExitCode::ResourceNotFound as i32,
                 error_type: "resource_not_found".to_string(),
                 message: format!("Input file does not exist: {}", input.display()),
-                suggestion: Some("Check that the file path is correct and the file exists".to_string()),
+                suggestion: Some(
+                    "Check that the file path is correct and the file exists".to_string(),
+                ),
             };
             println!("{}", serde_json::to_string_pretty(&error_json)?);
             std::process::exit(ExitCode::ResourceNotFound as i32);
         }
         return Err(anyhow!("Input file does not exist: {}", input.display()));
     }
-    
+
     let metadata = PdfMetadata::from_pdf(input)?;
-    
+
     if json {
         let json_output = serde_json::to_string_pretty(&metadata)?;
         println!("{}", json_output);
@@ -260,7 +272,7 @@ async fn handle_metadata(input: &PathBuf, output: Option<&Path>, json: bool, qui
         println!();
         print_metadata(&metadata);
     }
-    
+
     if let Some(output_path) = output {
         let json_content = serde_json::to_string_pretty(&metadata)?;
         std::fs::write(output_path, json_content)?;
@@ -269,14 +281,14 @@ async fn handle_metadata(input: &PathBuf, output: Option<&Path>, json: bool, qui
             println!("{}", format!("✅ Metadata saved to: {}", output_path.display()).green());
         }
     }
-    
+
     Ok(())
 }
 
 fn print_metadata(metadata: &PdfMetadata) {
     println!("{}", "📋 PDF Metadata".bold());
     println!("{}", "─".repeat(50));
-    
+
     if let Some(title) = &metadata.title {
         println!("  {}: {}", "Title".bold(), title);
     }
@@ -304,12 +316,12 @@ fn print_metadata(metadata: &PdfMetadata) {
     if let Some(page_count) = &metadata.page_count {
         println!("  {}: {}", "Pages".bold(), page_count);
     }
-    
+
     if !metadata.table_of_contents.is_empty() {
         println!();
         println!("{}", "📑 Table of Contents".bold());
         println!("{}", "─".repeat(50));
-        
+
         for entry in &metadata.table_of_contents {
             let indent = "  ".repeat(entry.level as usize);
             let page_str = entry.page.map(|p| format!(" (p. {})", p)).unwrap_or_default();
@@ -334,7 +346,7 @@ async fn handle_parse(
     overwrite: bool,
 ) -> Result<()> {
     use pdf_to_markdown::provider::paddleocr::PaddleOcrConfig;
-    
+
     if !input.exists() {
         if json {
             let error_json = ErrorJson {
@@ -342,17 +354,19 @@ async fn handle_parse(
                 error_code: ExitCode::ResourceNotFound as i32,
                 error_type: "resource_not_found".to_string(),
                 message: format!("Input file does not exist: {}", input.display()),
-                suggestion: Some("Check that the file path is correct and the file exists".to_string()),
+                suggestion: Some(
+                    "Check that the file path is correct and the file exists".to_string(),
+                ),
             };
             println!("{}", serde_json::to_string_pretty(&error_json)?);
             std::process::exit(ExitCode::ResourceNotFound as i32);
         }
         return Err(anyhow!("Input file does not exist: {}", input.display()));
     }
-    
+
     let provider_type = if let Some(provider_str) = provider {
         ProviderType::from_str(provider_str)
-            .ok_or_else(|| {
+            .map_err(|_| {
                 if json {
                     let error_json = ErrorJson {
                         success: false,
@@ -372,11 +386,11 @@ async fn handle_parse(
     } else {
         ProviderType::default()
     };
-    
+
     let output_dir = output_dir.unwrap_or_else(|| Path::new(".")).to_path_buf();
     let output_md_path = output_dir.join("doc.md");
     let output_images_dir = output_dir.join("images");
-    
+
     // Dry run handling
     if dry_run {
         let would_create = vec![
@@ -384,7 +398,7 @@ async fn handle_parse(
             output_md_path.display().to_string(),
             output_images_dir.display().to_string(),
         ];
-        
+
         if json {
             let dry_run_result = DryRunResultJson {
                 dry_run: true,
@@ -414,7 +428,7 @@ async fn handle_parse(
         }
         return Ok(());
     }
-    
+
     // Check for existing output without overwrite flag
     if !overwrite && (output_md_path.exists() || output_images_dir.exists()) {
         if json {
@@ -428,17 +442,24 @@ async fn handle_parse(
             println!("{}", serde_json::to_string_pretty(&error_json)?);
             std::process::exit(ExitCode::Conflict as i32);
         }
-        return Err(anyhow!(
-            "Output files already exist. Use --overwrite to overwrite them."
-        ));
+        return Err(anyhow!("Output files already exist. Use --overwrite to overwrite them."));
     }
-    
+
     // 调试：打印环境变量读取情况
     pdf_to_markdown::debug_print!("DEBUG: Checking API keys...");
-    pdf_to_markdown::debug_print!("DEBUG: PADDLE_OCR_API_KEY exists? {}", std::env::var("PADDLE_OCR_API_KEY").is_ok());
-    pdf_to_markdown::debug_print!("DEBUG: ZHIPU_API_KEY exists? {}", std::env::var("ZHIPU_API_KEY").is_ok());
-    pdf_to_markdown::debug_print!("DEBUG: PROVIDER_API_KEY exists? {}", std::env::var("PROVIDER_API_KEY").is_ok());
-    
+    pdf_to_markdown::debug_print!(
+        "DEBUG: PADDLE_OCR_API_KEY exists? {}",
+        std::env::var("PADDLE_OCR_API_KEY").is_ok()
+    );
+    pdf_to_markdown::debug_print!(
+        "DEBUG: ZHIPU_API_KEY exists? {}",
+        std::env::var("ZHIPU_API_KEY").is_ok()
+    );
+    pdf_to_markdown::debug_print!(
+        "DEBUG: PROVIDER_API_KEY exists? {}",
+        std::env::var("PROVIDER_API_KEY").is_ok()
+    );
+
     let api_key = api_key
         .map(|s| s.to_string())
         .or_else(|| {
@@ -462,40 +483,40 @@ async fn handle_parse(
             }
             anyhow!("API key must be provided via --api-key or provider-specific environment variable")
         })?;
-    
+
     std::fs::create_dir_all(&output_dir)?;
     std::fs::create_dir_all(&output_images_dir)?;
-    
+
     if !quiet && !json {
         println!("{}", format!("📄 Input: {}", input.display()).cyan());
         println!("{}", format!("📁 Output dir: {}", output_dir.display()).cyan());
-        
+
         let provider_display = match &provider_type {
             ProviderType::Zhipu(model) => format!("Zhipu ({})", model.as_str()),
             ProviderType::PaddleOcr => "PaddleOCR".to_string(),
         };
         println!("{}", format!("🔧 Provider: {}", provider_display).cyan());
-        
+
         if let Some(pages) = pages {
             println!("{}", format!("📄 Pages: {}", pages).cyan());
         }
     }
-    
+
     // 保存 provider_type 的克隆用于后续匹配
     let provider_type_clone = provider_type.clone();
-    
+
     let converter = Converter::new(provider_type, api_key);
-    
+
     let pb = Arc::new(Mutex::new(ProgressBar::new(100)));
     pb.lock().unwrap().set_style(
         ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {msg}")?
             .progress_chars("#>-"),
     );
-    
+
     // Save provider string representation before possible move
     let provider_str = provider_type_clone.as_str();
-    
+
     let page_ranges = if let Some(pages_str) = pages {
         let mut ranges = Vec::new();
         for part in pages_str.split(',') {
@@ -519,7 +540,7 @@ async fn handle_parse(
     } else {
         None
     };
-    
+
     let pb_clone = pb.clone();
     let result = match provider_type_clone {
         ProviderType::Zhipu(model) => {
@@ -530,49 +551,43 @@ async fn handle_parse(
                 page_ranges,
             };
             converter
-                .convert(
-                    input,
-                    &output_dir,
-                    &config,
-                    move |update| {
-                        let pb = pb_clone.lock().unwrap();
-                        pb.set_message(update.message);
-                        if let Some(total) = update.total {
-                            pb.set_length(total);
-                        }
-                        pb.set_position(update.current);
-                    },
-                )
+                .convert(input, &output_dir, &config, move |update| {
+                    let pb = pb_clone.lock().unwrap();
+                    pb.set_message(update.message);
+                    if let Some(total) = update.total {
+                        pb.set_length(total);
+                    }
+                    pb.set_position(update.current);
+                })
                 .await
         }
         ProviderType::PaddleOcr => {
             let config = PaddleOcrConfig {
                 page_ranges,
-                use_doc_orientation_classify: if use_doc_orientation_classify { Some(true) } else { None },
+                use_doc_orientation_classify: if use_doc_orientation_classify {
+                    Some(true)
+                } else {
+                    None
+                },
                 use_doc_unwarping: if use_doc_unwarping { Some(true) } else { None },
                 use_layout_detection: if use_layout_detection { Some(true) } else { None },
                 use_chart_recognition: if use_chart_recognition { Some(true) } else { None },
             };
             converter
-                .convert(
-                    input,
-                    &output_dir,
-                    &config,
-                    move |update| {
-                        let pb = pb_clone.lock().unwrap();
-                        pb.set_message(update.message);
-                    },
-                )
+                .convert(input, &output_dir, &config, move |update| {
+                    let pb = pb_clone.lock().unwrap();
+                    pb.set_message(update.message);
+                })
                 .await
         }
     }?;
-    
+
     pb.lock().unwrap().finish_and_clear();
-    
+
     let line_count = result.markdown.lines().count();
     let char_count = result.markdown.chars().count();
     let image_count = result.images.len();
-    
+
     if json {
         let parse_result = ParseResultJson {
             success: true,
@@ -590,22 +605,20 @@ async fn handle_parse(
         println!("{}", output_md_path.display());
     } else {
         println!("{}", "✅ Conversion completed successfully!".green());
-        println!(
-            "{}",
-            format!("✅ Markdown saved to: {}", output_md_path.display()).green()
-        );
+        println!("{}", format!("✅ Markdown saved to: {}", output_md_path.display()).green());
         println!(
             "{}",
             format!("📊 Statistics: {} lines, {} characters", line_count, char_count).cyan()
         );
-        
+
         if !result.images.is_empty() {
             println!(
                 "{}",
-                format!("🖼️  Extracted {} images to {}", image_count, output_images_dir.display()).cyan()
+                format!("🖼️  Extracted {} images to {}", image_count, output_images_dir.display())
+                    .cyan()
             );
         }
     }
-    
+
     Ok(())
 }

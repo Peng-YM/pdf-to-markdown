@@ -59,11 +59,8 @@ impl DocumentProvider for ZhipuProvider {
             None
         };
 
-        let file_to_parse = if let Some((_, ref path)) = temp_dir {
-            path.as_path()
-        } else {
-            file_path
-        };
+        let file_to_parse =
+            if let Some((_, ref path)) = temp_dir { path.as_path() } else { file_path };
 
         progress_cb(ProgressUpdate {
             message: "Creating task...".to_string(),
@@ -71,7 +68,8 @@ impl DocumentProvider for ZhipuProvider {
             total: Some(config.max_retries as u64),
         });
 
-        let task_id = create_task(&self.client, &self.api_key, file_to_parse, &config.tool_type).await?;
+        let task_id =
+            create_task(&self.client, &self.api_key, file_to_parse, &config.tool_type).await?;
 
         progress_cb(ProgressUpdate {
             message: format!("Task created: {}", task_id),
@@ -153,11 +151,8 @@ impl DocumentProvider for ZhipuProvider {
                             .collect();
 
                         for img_file in img_files {
-                            let filename = img_file
-                                .file_name()
-                                .to_str()
-                                .unwrap_or("image.jpg")
-                                .to_string();
+                            let filename =
+                                img_file.file_name().to_str().unwrap_or("image.jpg").to_string();
                             images.insert(filename, img_file.path().to_path_buf());
                         }
 
@@ -179,10 +174,6 @@ impl DocumentProvider for ZhipuProvider {
             return Err(anyhow!("No content generated"));
         }
 
-        Ok(ParseResult {
-            markdown: markdown_content,
-            images,
-            temp_dir: temp_dir_for_images,
-        })
+        Ok(ParseResult { markdown: markdown_content, images, temp_dir: temp_dir_for_images })
     }
 }

@@ -14,10 +14,7 @@ pub(super) async fn create_task(
     let url = format!("{}/files/parser/create", API_BASE_URL);
 
     let file_content = fs::read(file_path)?;
-    let file_name = file_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("file.pdf");
+    let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("file.pdf");
 
     let part = reqwest::multipart::Part::bytes(file_content)
         .file_name(file_name.to_string())
@@ -55,11 +52,8 @@ pub(super) async fn query_result(
 ) -> Result<QueryResultResponse> {
     let url = format!("{}/files/parser/result/{}/download_link", API_BASE_URL, task_id);
 
-    let response = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .send()
-        .await?;
+    let response =
+        client.get(&url).header("Authorization", format!("Bearer {}", api_key)).send().await?;
 
     let status = response.status();
     let body = response.text().await?;
@@ -74,11 +68,7 @@ pub(super) async fn query_result(
     Ok(query_response)
 }
 
-pub(super) async fn download_file(
-    client: &reqwest::Client,
-    url: &str,
-    path: &Path,
-) -> Result<()> {
+pub(super) async fn download_file(client: &reqwest::Client, url: &str, path: &Path) -> Result<()> {
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
