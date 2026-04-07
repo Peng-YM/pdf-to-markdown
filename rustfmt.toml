@@ -1,6 +1,6 @@
 max_width = 100
 tab_spaces = 4
-newline_style = "Unix"
+newline_style = "Native"
 use_small_heuristics = "Max"
 reorder_imports = true
 reorder_modules = true
