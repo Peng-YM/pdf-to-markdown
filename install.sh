@@ -54,9 +54,11 @@ detect_arch() {
 # Get latest release tag
 get_latest_release() {
     print_info "Fetching latest release from GitHub..."
-    local tag=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep -o '"tag_name": "[^"]*"' | cut -d'"' -f4)
+    local response=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest")
+    local tag=$(echo "$response" | grep -o '"tag_name": "[^"]*"' | cut -d'"' -f4)
     if [ -z "$tag" ]; then
         print_error "Failed to get latest release tag"
+        print_info "API response: $response"
         exit 1
     fi
     echo "$tag"
