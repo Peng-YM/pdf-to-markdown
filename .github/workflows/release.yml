@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -21,9 +21,6 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: pdf-to-markdown-macos-x86_64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: pdf-to-markdown-windows-x86_64.exe
 
     steps:
       - name: Checkout code
@@ -38,10 +35,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: cargo fmt --check 2>/dev/null || echo "Format check skipped"
+        run: cargo fmt --check
 
       - name: Run clippy
-        run: cargo clippy -- -W warnings
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
         run: cargo test --release
@@ -79,5 +76,4 @@ jobs:
           files: |
             pdf-to-markdown-linux-x86_64/pdf-to-markdown
             pdf-to-markdown-macos-x86_64/pdf-to-markdown
-            pdf-to-markdown-windows-x86_64.exe/pdf-to-markdown.exe
           generate_release_notes: true
