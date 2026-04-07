@@ -75,10 +75,19 @@ jobs:
           echo "--- macOS artifact ---"
           ls -la pdf-to-markdown-macos-x86_64/ || echo "Directory not found"
 
+      - name: Rename artifacts with platform suffix
+        run: |
+          mv pdf-to-markdown-linux-x86_64/pdf-to-markdown pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
+          mv pdf-to-markdown-macos-x86_64/pdf-to-markdown pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
+          chmod +x pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
+          chmod +x pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
+          ls -la pdf-to-markdown-linux-x86_64/
+          ls -la pdf-to-markdown-macos-x86_64/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            pdf-to-markdown-linux-x86_64/*
-            pdf-to-markdown-macos-x86_64/*
+            pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
+            pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
           generate_release_notes: true
