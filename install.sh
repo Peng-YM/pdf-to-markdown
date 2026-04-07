@@ -4,6 +4,7 @@ set -e
 
 # Default values
 REPO="Peng-YM/pdf-to-markdown"
+REPO_BRANCH="master"
 BINARY_NAME="pdf-to-markdown"
 INSTALL_DIR="${HOME}/.local/bin"
 
