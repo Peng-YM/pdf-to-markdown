@@ -46,9 +46,7 @@ detect_os() {
 detect_arch() {
     case "$(uname -m)" in
         x86_64|amd64) echo "x86_64";;
-        arm64|aarch64) 
-            print_warning "arm64 detected, but only x86_64 builds are available. Will try to use x86_64 (may require Rosetta on macOS)";
-            echo "x86_64";;
+        arm64|aarch64) echo "aarch64";;
         *) print_error "Unsupported architecture: $(uname -m)"; exit 1;;
     esac
 }

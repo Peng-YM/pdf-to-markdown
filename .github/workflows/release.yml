@@ -14,13 +14,23 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        target: [x86_64, aarch64]
+        exclude:
+          - os: ubuntu-latest
+            target: aarch64
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: x86_64
+            rust_target: x86_64-unknown-linux-gnu
             artifact_name: pdf-to-markdown-linux-x86_64
           - os: macos-latest
-            target: x86_64-apple-darwin
+            target: x86_64
+            rust_target: x86_64-apple-darwin
             artifact_name: pdf-to-markdown-macos-x86_64
+          - os: macos-latest
+            target: aarch64
+            rust_target: aarch64-apple-darwin
+            artifact_name: pdf-to-markdown-macos-aarch64
 
     steps:
       - name: Checkout code
@@ -29,7 +39,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust_target }}
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -44,13 +54,13 @@ jobs:
         run: cargo test --release
 
       - name: Build release
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.rust_target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/${{ matrix.target }}/release/pdf-to-markdown${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: target/${{ matrix.rust_target }}/release/pdf-to-markdown${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
     name: Create Release
@@ -77,12 +87,21 @@ jobs:
 
       - name: Rename artifacts with platform suffix
         run: |
-          mv pdf-to-markdown-linux-x86_64/pdf-to-markdown pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
-          mv pdf-to-markdown-macos-x86_64/pdf-to-markdown pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
-          chmod +x pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
-          chmod +x pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
-          ls -la pdf-to-markdown-linux-x86_64/
-          ls -la pdf-to-markdown-macos-x86_64/
+          if [ -d "pdf-to-markdown-linux-x86_64" ]; then
+            mv pdf-to-markdown-linux-x86_64/pdf-to-markdown pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
+            chmod +x pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
+            ls -la pdf-to-markdown-linux-x86_64/
+          fi
+          if [ -d "pdf-to-markdown-macos-x86_64" ]; then
+            mv pdf-to-markdown-macos-x86_64/pdf-to-markdown pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
+            chmod +x pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
+            ls -la pdf-to-markdown-macos-x86_64/
+          fi
+          if [ -d "pdf-to-markdown-macos-aarch64" ]; then
+            mv pdf-to-markdown-macos-aarch64/pdf-to-markdown pdf-to-markdown-macos-aarch64/pdf-to-markdown-macos-aarch64
+            chmod +x pdf-to-markdown-macos-aarch64/pdf-to-markdown-macos-aarch64
+            ls -la pdf-to-markdown-macos-aarch64/
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -90,4 +109,5 @@ jobs:
           files: |
             pdf-to-markdown-linux-x86_64/pdf-to-markdown-linux-x86_64
             pdf-to-markdown-macos-x86_64/pdf-to-markdown-macos-x86_64
+            pdf-to-markdown-macos-aarch64/pdf-to-markdown-macos-aarch64
           generate_release_notes: true
