@@ -10,7 +10,7 @@
   <a href="https://github.com/Peng-YM/pdf-to-markdown/issues">
     <img src="https://img.shields.io/github/issues/Peng-YM/pdf-to-markdown?style=flat-square" alt="Issues">
   </a>
-  <a href="https://github.com/Peng-YM/pdf-to-markdown/blob/main/LICENSE">
+  <a href="https://github.com/Peng-YM/pdf-to-markdown/blob/master/LICENSE">
     <img src="https://img.shields.io/github/license/Peng-YM/pdf-to-markdown?style=flat-square" alt="License">
   </a>
   <a href="https://github.com/Peng-YM/pdf-to-markdown/releases">
@@ -37,7 +37,7 @@
 Linux/macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/master/install.sh | bash
 ```
 
 ### 方法 2: 从 GitHub Release 下载
