@@ -1,0 +1,18 @@
+# Generated output
+examples/output.md
+examples/images/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+
+# Pi agent directory
+.pi/
