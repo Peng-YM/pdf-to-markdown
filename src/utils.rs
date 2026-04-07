@@ -365,7 +365,9 @@ pub async fn download_pdf(url: &str) -> Result<NamedTempFile> {
     }
     
     let bytes = response.bytes().await?;
-    let mut temp_file = NamedTempFile::new()?;
+    let mut temp_file = tempfile::Builder::new()
+        .suffix(".pdf")
+        .tempfile()?;
     std::io::Write::write_all(&mut temp_file, &bytes)?;
     
     Ok(temp_file)
