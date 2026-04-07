@@ -359,17 +359,15 @@ pub fn normalize_arxiv_url(url: &str) -> String {
 pub async fn download_pdf(url: &str) -> Result<NamedTempFile> {
     let client = Client::new();
     let response = client.get(url).send().await?;
-    
+
     if !response.status().is_success() {
         return Err(anyhow!("Failed to download PDF: HTTP status {}", response.status()));
     }
-    
+
     let bytes = response.bytes().await?;
-    let mut temp_file = tempfile::Builder::new()
-        .suffix(".pdf")
-        .tempfile()?;
+    let mut temp_file = tempfile::Builder::new().suffix(".pdf").tempfile()?;
     std::io::Write::write_all(&mut temp_file, &bytes)?;
-    
+
     Ok(temp_file)
 }
 

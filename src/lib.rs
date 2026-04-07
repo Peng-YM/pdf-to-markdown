@@ -16,4 +16,4 @@ pub mod utils;
 pub use converter::Converter;
 pub use error::{anyhow, Result};
 pub use provider::{DocumentProvider, ParseResult, ProgressUpdate, ProviderType, ZhipuModel};
-pub use utils::{is_url, normalize_arxiv_url, download_pdf, PdfMetadata};
+pub use utils::{download_pdf, is_url, normalize_arxiv_url, PdfMetadata};

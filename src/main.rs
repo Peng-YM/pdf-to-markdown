@@ -6,7 +6,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use pdf_to_markdown::error::{anyhow, Result};
 use pdf_to_markdown::provider::traits::*;
 use pdf_to_markdown::provider::ProviderType;
-use pdf_to_markdown::utils::{is_url, normalize_arxiv_url, download_pdf, PdfMetadata};
+use pdf_to_markdown::utils::{download_pdf, is_url, normalize_arxiv_url, PdfMetadata};
 use pdf_to_markdown::Converter;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -253,7 +253,11 @@ async fn run() -> Result<()> {
 }
 
 /// Helper to get a PDF path, downloading from URL if needed
-async fn get_pdf_path(input: &str, quiet: bool, json: bool) -> Result<(PathBuf, Option<NamedTempFile>)> {
+async fn get_pdf_path(
+    input: &str,
+    quiet: bool,
+    json: bool,
+) -> Result<(PathBuf, Option<NamedTempFile>)> {
     if is_url(input) {
         let normalized_url = normalize_arxiv_url(input);
         if !quiet && !json {
@@ -291,9 +295,7 @@ async fn handle_metadata(
                     error_code: ExitCode::ResourceNotFound as i32,
                     error_type: "resource_not_found".to_string(),
                     message: format!("{}", e),
-                    suggestion: Some(
-                        "Check that the file path or URL is correct".to_string(),
-                    ),
+                    suggestion: Some("Check that the file path or URL is correct".to_string()),
                 };
                 println!("{}", serde_json::to_string_pretty(&error_json)?);
                 std::process::exit(ExitCode::ResourceNotFound as i32);
@@ -422,9 +424,7 @@ async fn handle_parse(
                         error_code: ExitCode::ResourceNotFound as i32,
                         error_type: "resource_not_found".to_string(),
                         message: format!("{}", e),
-                        suggestion: Some(
-                            "Check that the file path or URL is correct".to_string(),
-                        ),
+                        suggestion: Some("Check that the file path or URL is correct".to_string()),
                     };
                     println!("{}", serde_json::to_string_pretty(&error_json)?);
                     std::process::exit(ExitCode::ResourceNotFound as i32);
