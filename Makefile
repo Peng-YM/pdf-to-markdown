@@ -1,4 +1,4 @@
-.PHONY: all build install release clean fmt clippy check test
+.PHONY: all build install release clean fmt clippy check test size
 
 # Default target
 all: build
@@ -38,3 +38,8 @@ check:
 # Run tests (if any)
 test:
 	@cargo test
+
+# Show binary size (release build)
+size:
+	@cargo build --release
+	@ls -lh target/release/pdf-to-markdown* 2>/dev/null || echo "Binary not found"

@@ -10,12 +10,12 @@ clap = { version = "4.5", features = ["derive"] }
 colored = "2.1"
 indicatif = "0.17"
 lopdf = "0.40"
-reqwest = { version = "0.12", features = ["json", "multipart"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 tempfile = "3.10"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "time", "fs"] }
 walkdir = "2.5"
 zip = "2.1"
 
@@ -26,3 +26,13 @@ path = "src/main.rs"
 [lib]
 name = "pdf_to_markdown"
 path = "src/lib.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.release.package.*]
+opt-level = "z"
