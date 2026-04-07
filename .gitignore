@@ -1,6 +1,6 @@
-# Generated output
-examples/output.md
-examples/images/
+# Rust build files
+target/
+Cargo.lock
 
 # IDE
 .idea/
@@ -13,6 +13,3 @@ examples/images/
 # Temporary files
 *.tmp
 *.bak
-
-# Pi agent directory
-.pi/

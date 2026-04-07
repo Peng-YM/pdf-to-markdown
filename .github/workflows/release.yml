@@ -36,26 +36,24 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: pdf-to-markdown
 
       - name: Check formatting
-        run: cd pdf-to-markdown && cargo fmt --check
+        run: cargo fmt --check
 
       - name: Run clippy
-        run: cd pdf-to-markdown && cargo clippy -- -D warnings
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
-        run: cd pdf-to-markdown && cargo test --release
+        run: cargo test --release
 
       - name: Build release
-        run: cd pdf-to-markdown && cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: pdf-to-markdown/target/${{ matrix.target }}/release/pdf-to-markdown${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: target/${{ matrix.target }}/release/pdf-to-markdown${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
     name: Create Release
