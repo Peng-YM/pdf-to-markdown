@@ -16,24 +16,18 @@
 Linux/macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pengym/pdf-extractor/main/install.sh | bash
-```
-
-或者使用 wget:
-
-```bash
-wget -qO- https://raw.githubusercontent.com/pengym/pdf-extractor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/main/install.sh | bash
 ```
 
 ### 方法 2: 从 GitHub Release 下载
 
-从 [GitHub Releases](https://github.com/pengym/pdf-extractor/releases) 下载对应平台的二进制文件。
+从 [GitHub Releases](https://github.com/Peng-YM/pdf-to-markdown/releases) 下载对应平台的二进制文件。
 
 ### 方法 3: 从源码构建
 
 ```bash
-git clone https://github.com/pengym/pdf-extractor.git
-cd pdf-extractor
+git clone https://github.com/Peng-YM/pdf-to-markdown.git
+cd pdf-to-markdown
 cargo build --release
 ```
 

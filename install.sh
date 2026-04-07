@@ -3,7 +3,7 @@
 set -e
 
 # Default values
-REPO="pengym/pdf-extractor"
+REPO="Peng-YM/pdf-to-markdown"
 BINARY_NAME="pdf-to-markdown"
 INSTALL_DIR="${HOME}/.local/bin"
 
