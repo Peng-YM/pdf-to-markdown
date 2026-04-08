@@ -163,8 +163,6 @@ enum Commands {
         #[arg(short = 'k', long, value_name = "API_KEY")]
         api_key: Option<String>,
 
-
-
         /// Output result as JSON to stdout
         #[arg(long)]
         json: bool,
