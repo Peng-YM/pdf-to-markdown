@@ -7,7 +7,7 @@ REPO="Peng-YM/pdf-to-markdown"
 REPO_BRANCH="master"
 BINARY_NAME="pdf-to-markdown"
 INSTALL_DIR="${HOME}/.local/bin"
-DEFAULT_VERSION="v0.2.0"
+DEFAULT_VERSION="v0.3.0"
 
 # Colors for output
 RED='\033[0;31m'
