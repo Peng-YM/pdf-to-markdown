@@ -102,6 +102,21 @@ pub struct OptionalPayload {
     #[serde(rename = "useChartRecognition")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_chart_recognition: Option<bool>,
+    #[serde(rename = "layoutNms")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_nms: Option<bool>,
+    #[serde(rename = "layoutMergeBboxesMode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_merge_bboxes_mode: Option<String>,
+    #[serde(rename = "showFormulaNumber")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_formula_number: Option<bool>,
+    #[serde(rename = "restructurePages")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restructure_pages: Option<bool>,
+    #[serde(rename = "prettifyMarkdown")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prettify_markdown: Option<bool>,
 }
 
 impl Default for OptionalPayload {
@@ -109,8 +124,13 @@ impl Default for OptionalPayload {
         Self {
             use_doc_orientation_classify: Some(false),
             use_doc_unwarping: Some(false),
-            use_layout_detection: Some(false),
+            use_layout_detection: Some(true),
             use_chart_recognition: Some(false),
+            layout_nms: Some(true),
+            layout_merge_bboxes_mode: Some("union".to_string()),
+            show_formula_number: Some(true),
+            restructure_pages: Some(true),
+            prettify_markdown: Some(true),
         }
     }
 }

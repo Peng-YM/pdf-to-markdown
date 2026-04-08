@@ -36,6 +36,11 @@ pub struct PaddleOcrConfig {
     pub use_doc_unwarping: Option<bool>,
     pub use_layout_detection: Option<bool>,
     pub use_chart_recognition: Option<bool>,
+    pub layout_nms: Option<bool>,
+    pub layout_merge_bboxes_mode: Option<String>,
+    pub show_formula_number: Option<bool>,
+    pub restructure_pages: Option<bool>,
+    pub prettify_markdown: Option<bool>,
 }
 
 impl Default for PaddleOcrConfig {
@@ -44,8 +49,13 @@ impl Default for PaddleOcrConfig {
             page_ranges: None,
             use_doc_orientation_classify: Some(false),
             use_doc_unwarping: Some(false),
-            use_layout_detection: Some(false),
+            use_layout_detection: Some(true),
             use_chart_recognition: Some(false),
+            layout_nms: Some(true),
+            layout_merge_bboxes_mode: Some("union".to_string()),
+            show_formula_number: Some(true),
+            restructure_pages: Some(true),
+            prettify_markdown: Some(true),
         }
     }
 }
@@ -99,6 +109,11 @@ impl DocumentProvider for PaddleOcrProvider {
             use_doc_unwarping: config.use_doc_unwarping,
             use_layout_detection: config.use_layout_detection,
             use_chart_recognition: config.use_chart_recognition,
+            layout_nms: config.layout_nms,
+            layout_merge_bboxes_mode: config.layout_merge_bboxes_mode.clone(),
+            show_formula_number: config.show_formula_number,
+            restructure_pages: config.restructure_pages,
+            prettify_markdown: config.prettify_markdown,
         };
 
         // 提交任务

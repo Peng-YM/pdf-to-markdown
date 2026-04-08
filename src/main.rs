@@ -163,21 +163,7 @@ enum Commands {
         #[arg(short = 'k', long, value_name = "API_KEY")]
         api_key: Option<String>,
 
-        /// PaddleOCR: Use document orientation classification
-        #[arg(long)]
-        use_doc_orientation_classify: bool,
 
-        /// PaddleOCR: Use document unwarping
-        #[arg(long)]
-        use_doc_unwarping: bool,
-
-        /// PaddleOCR: Use layout detection
-        #[arg(long)]
-        use_layout_detection: bool,
-
-        /// PaddleOCR: Use chart recognition
-        #[arg(long)]
-        use_chart_recognition: bool,
 
         /// Output result as JSON to stdout
         #[arg(long)]
@@ -223,10 +209,7 @@ async fn run() -> Result<()> {
             pages,
             provider,
             api_key,
-            use_doc_orientation_classify,
-            use_doc_unwarping,
-            use_layout_detection,
-            use_chart_recognition,
+
             json,
             quiet,
             dry_run,
@@ -238,10 +221,6 @@ async fn run() -> Result<()> {
                 pages.as_deref(),
                 provider.as_deref(),
                 api_key.as_deref(),
-                use_doc_orientation_classify,
-                use_doc_unwarping,
-                use_layout_detection,
-                use_chart_recognition,
                 json,
                 quiet,
                 dry_run,
@@ -378,10 +357,6 @@ async fn handle_parse(
     pages: Option<&str>,
     provider: Option<&str>,
     api_key: Option<&str>,
-    use_doc_orientation_classify: bool,
-    use_doc_unwarping: bool,
-    use_layout_detection: bool,
-    use_chart_recognition: bool,
     json: bool,
     quiet: bool,
     dry_run: bool,
@@ -634,14 +609,8 @@ async fn handle_parse(
         ProviderType::PaddleOcr => {
             let config = PaddleOcrConfig {
                 page_ranges,
-                use_doc_orientation_classify: if use_doc_orientation_classify {
-                    Some(true)
-                } else {
-                    None
-                },
-                use_doc_unwarping: if use_doc_unwarping { Some(true) } else { None },
-                use_layout_detection: if use_layout_detection { Some(true) } else { None },
-                use_chart_recognition: if use_chart_recognition { Some(true) } else { None },
+                // 使用默认配置：打开布局检查，关闭图片方向矫正和扭曲矫正
+                ..Default::default()
             };
             converter
                 .convert(&pdf_path, &output_dir, &config, move |update| {
