@@ -23,6 +23,10 @@
 
 使用模块化架构的 PDF 转 Markdown 命令行工具，支持多个文档解析服务提供商。专为 AI 代理友好设计。
 
+<p align="center">
+  <img src="assets/demo.png" alt="Demo" width="800" />
+</p>
+
 ## 特性
 
 - 🚀 **多提供商支持**: PaddleOCR (默认), 智谱 AI (lite/expert/prime)
