@@ -7,6 +7,7 @@ REPO="Peng-YM/pdf-to-markdown"
 REPO_BRANCH="master"
 BINARY_NAME="pdf-to-markdown"
 INSTALL_DIR="${HOME}/.local/bin"
+DEFAULT_VERSION="v0.2.0"
 
 # Colors for output
 RED='\033[0;31m'
@@ -147,14 +148,8 @@ main() {
         tag="$1"
         print_info "Using specified tag: ${tag}"
     else
-        tag=$(get_latest_release)
-        print_info "Latest release tag: ${tag}"
-    fi
-    
-    if [ -z "${tag}" ]; then
-        print_error "No release tag available"
-        print_info "You can manually specify a tag: ./install.sh v0.2.0"
-        exit 1
+        tag="${DEFAULT_VERSION}"
+        print_info "Default version: ${tag}"
     fi
     
     echo ""
