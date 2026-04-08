@@ -54,6 +54,15 @@ cargo build --release
 
 更多开发相关信息请参考 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
+## API Key 申请
+
+### PaddleOCR (默认)
+- **申请地址**: https://aistudio.baidu.com/paddleocr
+- **免费额度**: 每日免费 OCR 20,000 页
+
+### 智谱 AI
+- **申请地址**: https://open.bigmodel.cn/
+
 ## 使用
 
 ### 基本使用
