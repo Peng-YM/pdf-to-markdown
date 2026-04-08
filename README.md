@@ -61,7 +61,8 @@ cargo build --release
 - **免费额度**: 每日免费 OCR 20,000 页
 
 ### 智谱 AI
-- **申请地址**: https://open.bigmodel.cn/
+- **申请地址**: https://bigmodel.cn/usercenter/proj-mgmt/apikeys
+- **注意**: 需要完成实名认证
 
 ## 使用
 
