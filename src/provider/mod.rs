@@ -2,7 +2,7 @@ pub mod paddleocr;
 pub mod traits;
 mod zhipu;
 
-pub use paddleocr::PaddleOcrProvider;
+pub use paddleocr::{PaddleOcrConfig, PaddleOcrProvider};
 pub use traits::*;
 pub use zhipu::ZhipuProvider;
 

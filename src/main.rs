@@ -3,6 +3,7 @@
 use clap::Parser;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
+use pdf_to_markdown::cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
 use pdf_to_markdown::error::{anyhow, Result};
 use pdf_to_markdown::provider::traits::*;
 use pdf_to_markdown::provider::ProviderType;
@@ -64,7 +65,7 @@ struct DryRunResultJson {
 #[derive(Parser, Debug)]
 #[command(name = "pdf-to-markdown")]
 #[command(about = "PDF to Markdown converter with progressive information disclosure")]
-#[command(version = "0.3.0")]
+#[command(version = "0.4.0")]
 #[command(after_help = "\
 EXAMPLES:
     # Get PDF metadata and table of contents (local file)
@@ -114,6 +115,18 @@ EXAMPLES:
     
     # Overwrite existing output files
     pdf-to-markdown parse document.pdf -o ./output/ --overwrite
+    
+    # Disable cache temporarily
+    PDF_TO_MARKDOWN_NO_CACHE=1 pdf-to-markdown parse document.pdf
+    
+    # Show cache status
+    pdf-to-markdown cache status
+    
+    # Clear cache
+    pdf-to-markdown cache clear
+    
+    # Clear cache without confirmation
+    pdf-to-markdown cache clear --force
 ")]
 struct Cli {
     #[command(subcommand)]
@@ -179,6 +192,28 @@ enum Commands {
         #[arg(long)]
         overwrite: bool,
     },
+
+    /// Cache management commands
+    Cache {
+        #[command(subcommand)]
+        cache_command: CacheCommands,
+    },
+}
+
+#[derive(Parser, Debug)]
+enum CacheCommands {
+    /// Show cache status (number of entries, size, etc.)
+    Status {
+        /// Output result as JSON to stdout
+        #[arg(long)]
+        json: bool,
+    },
+    /// Clear all cache entries
+    Clear {
+        /// Force clear without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 /// Wrapper for main to handle exit codes
@@ -226,6 +261,7 @@ async fn run() -> Result<()> {
             )
             .await
         }
+        Commands::Cache { cache_command } => handle_cache(cache_command).await,
     }
 }
 
@@ -583,6 +619,7 @@ async fn handle_parse(
     } else {
         None
     };
+    let page_ranges_clone = page_ranges.clone();
 
     let pb_clone = pb.clone();
     let result = match provider_type_clone {
@@ -591,30 +628,46 @@ async fn handle_parse(
                 tool_type: model.as_str().to_string(),
                 max_retries: 60,
                 poll_interval_secs: 3,
-                page_ranges,
+                page_ranges: page_ranges_clone.clone(),
             };
             converter
-                .convert(&pdf_path, &output_dir, &config, move |update| {
-                    let pb = pb_clone.lock().unwrap();
-                    pb.set_message(update.message);
-                    if let Some(total) = update.total {
-                        pb.set_length(total);
-                    }
-                    pb.set_position(update.current);
-                })
+                .convert_with_cache(
+                    &pdf_path,
+                    input,
+                    &output_dir,
+                    &config,
+                    &provider_str,
+                    page_ranges,
+                    move |update| {
+                        let pb = pb_clone.lock().unwrap();
+                        pb.set_message(update.message);
+                        if let Some(total) = update.total {
+                            pb.set_length(total);
+                        }
+                        pb.set_position(update.current);
+                    },
+                )
                 .await
         }
         ProviderType::PaddleOcr => {
             let config = PaddleOcrConfig {
-                page_ranges,
+                page_ranges: page_ranges_clone.clone(),
                 // 使用默认配置：打开布局检查，关闭图片方向矫正和扭曲矫正
                 ..Default::default()
             };
             converter
-                .convert(&pdf_path, &output_dir, &config, move |update| {
-                    let pb = pb_clone.lock().unwrap();
-                    pb.set_message(update.message);
-                })
+                .convert_with_cache(
+                    &pdf_path,
+                    input,
+                    &output_dir,
+                    &config,
+                    &provider_str,
+                    page_ranges,
+                    move |update| {
+                        let pb = pb_clone.lock().unwrap();
+                        pb.set_message(update.message);
+                    },
+                )
                 .await
         }
     }?;
@@ -658,4 +711,98 @@ async fn handle_parse(
     }
 
     Ok(())
+}
+
+async fn handle_cache(cache_command: CacheCommands) -> Result<()> {
+    let cache_manager = CacheManager::new()?;
+
+    match cache_command {
+        CacheCommands::Status { json } => {
+            let (entry_count, total_size) = cache_manager.cache_size()?;
+
+            if json {
+                let status = serde_json::json!({
+                    "success": true,
+                    "entry_count": entry_count,
+                    "total_size_bytes": total_size,
+                    "total_size_human": format_size(total_size),
+                    "cache_disabled": std::env::var(CACHE_DISABLE_ENV_VAR).map(|v| v == "1" || v.to_lowercase() == "true").unwrap_or(false),
+                });
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else {
+                println!("{}", "📦 Cache Status".bold());
+                println!("{}", "─".repeat(50));
+                println!("  {}: {}", "Entries".bold(), entry_count);
+                println!("  {}: {}", "Size".bold(), format_size(total_size));
+                println!("  {}: {}", "Disabled".bold(), if std::env::var(CACHE_DISABLE_ENV_VAR).map(|v| v == "1" || v.to_lowercase() == "true").unwrap_or(false) { "Yes" } else { "No" });
+            }
+        }
+        CacheCommands::Clear { force } => {
+            if !force {
+                let (entry_count, total_size) = cache_manager.cache_size()?;
+                println!("{}", "⚠️  Clear Cache Confirmation".yellow().bold());
+                println!("{}", "─".repeat(50));
+                println!("  This will delete:");
+                println!("    - {} cache entries", entry_count);
+                println!("    - {} of data", format_size(total_size));
+                println!();
+
+                let confirm = ask_user::ask_user(
+                    "Are you sure you want to clear the cache?",
+                    &["Yes, clear it", "No, cancel"],
+                )?;
+
+                if confirm != "Yes, clear it" {
+                    println!("{}", "✅ Cache clear cancelled".green());
+                    return Ok(());
+                }
+            }
+
+            cache_manager.clear()?;
+            println!("{}", "✅ Cache cleared successfully".green());
+        }
+    }
+
+    Ok(())
+}
+
+fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.2} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} bytes", bytes)
+    }
+}
+
+// Simple helper for user confirmation
+mod ask_user {
+    use std::io::{self, Write};
+
+    pub fn ask_user(question: &str, options: &[&str]) -> super::Result<String> {
+        println!("{}", question);
+        for (i, option) in options.iter().enumerate() {
+            println!("  {}. {}", i + 1, option);
+        }
+
+        print!("Your choice: ");
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let choice = input.trim().parse::<usize>()?;
+        if choice < 1 || choice > options.len() {
+            return Err(super::anyhow!("Invalid choice"));
+        }
+
+        Ok(options[choice - 1].to_string())
+    }
 }

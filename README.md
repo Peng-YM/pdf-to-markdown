@@ -34,6 +34,8 @@
 - 🤖 **AI 代理友好**: 结构化 JSON 输出、有意义的退出码、dry-run 支持
 - 📦 **易于安装**: 一键安装脚本，支持 Linux/macOS/Windows
 - 🔧 **配置灵活**: 丰富的 CLI 选项和配置
+- 💾 **智能缓存**: 自动缓存解析结果，避免重复调用 API
+- 🔄 **URL 去重**: 基于文件哈希和 URL 的重复检测机制
 
 ### 支持的文档元素
 
@@ -167,6 +169,55 @@ pdf-to-markdown parse document.pdf --quiet
 
 # 覆盖已存在的输出文件
 pdf-to-markdown parse document.pdf --overwrite
+
+# 临时禁用缓存
+PDF_TO_MARKDOWN_NO_CACHE=1 pdf-to-markdown parse document.pdf
+```
+
+#### `cache` - 缓存管理
+
+```bash
+# 查看缓存状态
+pdf-to-markdown cache status
+
+# 查看缓存状态 (JSON 格式)
+pdf-to-markdown cache status --json
+
+# 清除缓存 (需要确认)
+pdf-to-markdown cache clear
+
+# 强制清除缓存 (无需确认)
+pdf-to-markdown cache clear --force
+```
+
+## 缓存功能
+
+工具会自动缓存解析结果，避免对相同的 PDF 文件或 URL 重复调用 API，节省成本和时间。
+
+### 缓存机制
+
+- **文件哈希**: 对本地文件计算 SHA256 哈希值作为缓存键
+- **URL 哈希**: 对 URL 计算 SHA256 哈希值作为缓存键
+- **多维度缓存**: 缓存键还包含提供商类型和页面范围，确保不同配置的结果不会混淆
+- **图片缓存**: 提取的图片也会被缓存，加速重复解析
+
+### 缓存位置
+
+缓存存储在系统标准的缓存目录中：
+- Linux: `~/.cache/pdf-to-markdown/`
+- macOS: `~/Library/Caches/pdf-to-markdown/`
+- Windows: `%LOCALAPPDATA%\pdf-to-markdown\cache\`
+
+### 临时禁用缓存
+
+在某些情况下，你可能想要绕过缓存重新解析文件：
+
+```bash
+# 方法 1: 设置环境变量
+PDF_TO_MARKDOWN_NO_CACHE=1 pdf-to-markdown parse document.pdf
+
+# 方法 2: 使用 true 值
+PDF_TO_MARKDOWN_NO_CACHE=true pdf-to-markdown parse document.pdf
 ```
 
 ## 开发与贡献

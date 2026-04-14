@@ -8,11 +8,13 @@ macro_rules! debug_print {
     };
 }
 
+pub mod cache;
 pub mod converter;
 pub mod error;
 pub mod provider;
 pub mod utils;
 
+pub use cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
 pub use converter::Converter;
 pub use error::{anyhow, Result};
 pub use provider::{DocumentProvider, ParseResult, ProgressUpdate, ProviderType, ZhipuModel};
