@@ -49,7 +49,7 @@ Optimized for academic publications such as Arxiv papers.
 
 ## Installation
 
-### Option 1: One-Click Install Script
+### One-Click Install Script
 
 Linux/macOS:
 
@@ -57,17 +57,7 @@ Linux/macOS:
 curl -fsSL https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/master/install.sh | bash
 ```
 
-### Option 2: Download from GitHub Release
-
-Download the binary for your platform from [GitHub Releases](https://github.com/Peng-YM/pdf-to-markdown/releases).
-
-### Option 3: Build from Source
-
-```bash
-git clone https://github.com/Peng-YM/pdf-to-markdown.git
-cd pdf-to-markdown
-cargo build --release
-```
+For alternative installation methods, see [GitHub Releases](https://github.com/Peng-YM/pdf-to-markdown/releases) or build from source.
 
 For more development information, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
