@@ -4,6 +4,7 @@ use clap::Parser;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use pdf_to_markdown::cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
+use pdf_to_markdown::converter::ConvertWithCacheOptions;
 use pdf_to_markdown::error::{anyhow, Result};
 use pdf_to_markdown::provider::traits::*;
 use pdf_to_markdown::provider::ProviderType;
@@ -630,23 +631,23 @@ async fn handle_parse(
                 poll_interval_secs: 3,
                 page_ranges: page_ranges_clone.clone(),
             };
+            let options = ConvertWithCacheOptions {
+                input_path: &pdf_path,
+                input_identifier: input,
+                output_dir: &output_dir,
+                config: &config,
+                provider_name: &provider_str,
+                page_ranges,
+            };
             converter
-                .convert_with_cache(
-                    &pdf_path,
-                    input,
-                    &output_dir,
-                    &config,
-                    &provider_str,
-                    page_ranges,
-                    move |update| {
-                        let pb = pb_clone.lock().unwrap();
-                        pb.set_message(update.message);
-                        if let Some(total) = update.total {
-                            pb.set_length(total);
-                        }
-                        pb.set_position(update.current);
-                    },
-                )
+                .convert_with_cache(options, move |update| {
+                    let pb = pb_clone.lock().unwrap();
+                    pb.set_message(update.message);
+                    if let Some(total) = update.total {
+                        pb.set_length(total);
+                    }
+                    pb.set_position(update.current);
+                })
                 .await
         }
         ProviderType::PaddleOcr => {
@@ -655,19 +656,19 @@ async fn handle_parse(
                 // 使用默认配置：打开布局检查，关闭图片方向矫正和扭曲矫正
                 ..Default::default()
             };
+            let options = ConvertWithCacheOptions {
+                input_path: &pdf_path,
+                input_identifier: input,
+                output_dir: &output_dir,
+                config: &config,
+                provider_name: &provider_str,
+                page_ranges,
+            };
             converter
-                .convert_with_cache(
-                    &pdf_path,
-                    input,
-                    &output_dir,
-                    &config,
-                    &provider_str,
-                    page_ranges,
-                    move |update| {
-                        let pb = pb_clone.lock().unwrap();
-                        pb.set_message(update.message);
-                    },
-                )
+                .convert_with_cache(options, move |update| {
+                    let pb = pb_clone.lock().unwrap();
+                    pb.set_message(update.message);
+                })
                 .await
         }
     }?;

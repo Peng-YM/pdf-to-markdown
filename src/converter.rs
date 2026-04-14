@@ -7,6 +7,16 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+/// 带缓存转换的参数
+pub struct ConvertWithCacheOptions<'a> {
+    pub input_path: &'a Path,
+    pub input_identifier: &'a str,
+    pub output_dir: &'a Path,
+    pub config: &'a dyn ProviderConfig,
+    pub provider_name: &'a str,
+    pub page_ranges: Option<Vec<(u32, u32)>>,
+}
+
 pub struct Converter {
     provider: Arc<dyn DocumentProvider>,
     cache_manager: Option<CacheManager>,
@@ -22,14 +32,17 @@ impl Converter {
     /// 带缓存的转换方法
     pub async fn convert_with_cache(
         &self,
-        input_path: &Path,
-        input_identifier: &str, // 原始输入路径或 URL
-        output_dir: &Path,
-        config: &dyn ProviderConfig,
-        provider_name: &str,
-        page_ranges: Option<Vec<(u32, u32)>>,
+        options: ConvertWithCacheOptions<'_>,
         progress_cb: impl FnMut(ProgressUpdate) + Send + 'static,
     ) -> Result<ParseResult> {
+        let ConvertWithCacheOptions {
+            input_path,
+            input_identifier,
+            output_dir,
+            config,
+            provider_name,
+            page_ranges,
+        } = options;
         // 首先尝试从缓存获取
         if let Some(cache_manager) = &self.cache_manager {
             // 计算哈希
@@ -64,7 +77,7 @@ impl Converter {
 
                 // 更新 Markdown 中的图片引用
                 let mut markdown = result.markdown.clone();
-                for (img_name, _) in &result.images {
+                for img_name in result.images.keys() {
                     let relative_path = format!("images/{}", img_name);
                     let original_ref = img_name;
                     markdown = markdown.replace(original_ref, &relative_path);
