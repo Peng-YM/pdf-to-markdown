@@ -42,7 +42,7 @@ impl Converter {
             // 检查缓存
             if let Some(cache_entry) = cache_manager.get(&hash, provider_name, &page_ranges)? {
                 crate::debug_print!("Cache hit for: {}", input_identifier);
-                
+
                 // 从缓存恢复数据
                 let mut result = ParseResult {
                     markdown: cache_entry.markdown,
@@ -108,7 +108,7 @@ impl Converter {
         config: &dyn ProviderConfig,
         progress_cb: impl FnMut(ProgressUpdate) + Send + 'static,
     ) -> Result<ParseResult> {
-        let mut result = 
+        let mut result =
             self.provider.parse_document(input_path, config, Box::new(progress_cb)).await?;
 
         if let Ok(metadata) = PdfMetadata::from_pdf(input_path) {

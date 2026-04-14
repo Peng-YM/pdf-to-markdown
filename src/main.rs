@@ -734,7 +734,18 @@ async fn handle_cache(cache_command: CacheCommands) -> Result<()> {
                 println!("{}", "─".repeat(50));
                 println!("  {}: {}", "Entries".bold(), entry_count);
                 println!("  {}: {}", "Size".bold(), format_size(total_size));
-                println!("  {}: {}", "Disabled".bold(), if std::env::var(CACHE_DISABLE_ENV_VAR).map(|v| v == "1" || v.to_lowercase() == "true").unwrap_or(false) { "Yes" } else { "No" });
+                println!(
+                    "  {}: {}",
+                    "Disabled".bold(),
+                    if std::env::var(CACHE_DISABLE_ENV_VAR)
+                        .map(|v| v == "1" || v.to_lowercase() == "true")
+                        .unwrap_or(false)
+                    {
+                        "Yes"
+                    } else {
+                        "No"
+                    }
+                );
             }
         }
         CacheCommands::Clear { force } => {

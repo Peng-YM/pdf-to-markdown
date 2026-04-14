@@ -72,7 +72,7 @@ impl CacheManager {
     pub fn new() -> Result<Self> {
         let project_dirs = ProjectDirs::from("", "", "pdf-to-markdown")
             .ok_or_else(|| anyhow!("Failed to determine project directories"))?;
-        
+
         let cache_dir = project_dirs.cache_dir().to_path_buf();
         let index_path = cache_dir.join("index.json");
         let images_dir = cache_dir.join("images");
@@ -80,11 +80,7 @@ impl CacheManager {
         fs::create_dir_all(&cache_dir)?;
         fs::create_dir_all(&images_dir)?;
 
-        Ok(Self {
-            cache_dir,
-            index_path,
-            images_dir,
-        })
+        Ok(Self { cache_dir, index_path, images_dir })
     }
 
     /// 加载缓存索引
@@ -129,7 +125,7 @@ impl CacheManager {
         page_ranges: &Option<Vec<(u32, u32)>>,
     ) -> String {
         let mut key = format!("{}:{}", hash, provider);
-        
+
         if let Some(ranges) = page_ranges {
             let ranges_str = ranges
                 .iter()
@@ -173,17 +169,17 @@ impl CacheManager {
         }
 
         let mut image_hashes = HashMap::new();
-        
+
         // 保存图片并计算哈希
         for (name, path) in images {
             let content = fs::read(&path)?;
             let mut hasher = Sha256::new();
             hasher.update(&content);
             let image_hash = format!("{:x}", hasher.finalize());
-            
+
             let image_path = self.images_dir.join(&image_hash);
             fs::write(&image_path, content)?;
-            
+
             image_hashes.insert(name, image_hash);
         }
 
@@ -205,7 +201,11 @@ impl CacheManager {
     }
 
     /// 从缓存恢复图片到指定目录
-    pub fn restore_images(&self, images: &HashMap<String, String>, output_dir: &Path) -> Result<HashMap<String, PathBuf>> {
+    pub fn restore_images(
+        &self,
+        images: &HashMap<String, String>,
+        output_dir: &Path,
+    ) -> Result<HashMap<String, PathBuf>> {
         let mut result = HashMap::new();
         let images_output_dir = output_dir.join("images");
         fs::create_dir_all(&images_output_dir)?;
