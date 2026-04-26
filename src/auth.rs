@@ -115,8 +115,7 @@ mod platform {
         // 2. Fallback: encrypted file (Linux only)
         #[cfg(target_os = "linux")]
         {
-            super::linux_fallback::set_to_file(credential_key, api_key)?;
-            return Ok(());
+            super::linux_fallback::set_to_file(credential_key, api_key)
         }
 
         #[cfg(not(target_os = "linux"))]
