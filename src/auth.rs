@@ -90,7 +90,7 @@ mod platform {
         // 2. Fallback: encrypted file (Linux only)
         #[cfg(target_os = "linux")]
         {
-            if let Some(password) = linux_fallback::get_from_file(credential_key)? {
+            if let Some(password) = super::linux_fallback::get_from_file(credential_key)? {
                 return Ok(Some(password));
             }
         }
@@ -115,10 +115,11 @@ mod platform {
         // 2. Fallback: encrypted file (Linux only)
         #[cfg(target_os = "linux")]
         {
-            linux_fallback::set_to_file(credential_key, api_key)?;
+            super::linux_fallback::set_to_file(credential_key, api_key)?;
             return Ok(());
         }
 
+        #[cfg(not(target_os = "linux"))]
         Err(anyhow!(
             "Failed to access system keychain. On Linux, ensure libdbus and libsecret are installed."
         ))
@@ -142,7 +143,7 @@ mod platform {
         // 2. Also try encrypted file (Linux only)
         #[cfg(target_os = "linux")]
         {
-            if linux_fallback::delete_from_file(credential_key)? {
+            if super::linux_fallback::delete_from_file(credential_key)? {
                 deleted = true;
             }
         }
@@ -169,7 +170,7 @@ mod platform {
         // Also check encrypted file (Linux only)
         #[cfg(target_os = "linux")]
         {
-            if let Ok(file_providers) = linux_fallback::list_from_file() {
+            if let Ok(file_providers) = super::linux_fallback::list_from_file() {
                 for p in file_providers {
                     if !providers.contains(&p) {
                         providers.push(p);
