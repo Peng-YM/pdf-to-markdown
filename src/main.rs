@@ -3,6 +3,7 @@
 use clap::Parser;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
+use pdf_to_markdown::auth;
 use pdf_to_markdown::cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
 use pdf_to_markdown::converter::ConvertWithCacheOptions;
 use pdf_to_markdown::error::{anyhow, Result};
@@ -66,7 +67,7 @@ struct DryRunResultJson {
 #[derive(Parser, Debug)]
 #[command(name = "pdf-to-markdown")]
 #[command(about = "PDF to Markdown converter with progressive information disclosure")]
-#[command(version = "0.4.0")]
+#[command(version = "0.5.0")]
 #[command(after_help = "\
 EXAMPLES:
     # Get PDF metadata and table of contents (local file)
@@ -122,12 +123,27 @@ EXAMPLES:
     
     # Show cache status
     pdf-to-markdown cache status
-    
+
     # Clear cache
     pdf-to-markdown cache clear
-    
+
     # Clear cache without confirmation
     pdf-to-markdown cache clear --force
+
+    # Store API key securely (interactive)
+    pdf-to-markdown login
+
+    # Store API key for specific provider (interactive key input)
+    pdf-to-markdown login --provider paddleocr
+
+    # Store API key non-interactively
+    pdf-to-markdown login --provider zhipu --api-key your-api-key
+
+    # List stored credentials
+    pdf-to-markdown login --list
+
+    # Delete stored credential
+    pdf-to-markdown login --delete paddleocr
 ")]
 struct Cli {
     #[command(subcommand)]
@@ -173,7 +189,7 @@ enum Commands {
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
 
-        /// API Key (can also be set via ZHIPU_API_KEY, PADDLE_OCR_API_KEY, or PROVIDER_API_KEY environment variable)
+        /// API Key (can also be set via env var or stored with 'pdf-to-markdown login')
         #[arg(short = 'k', long, value_name = "API_KEY")]
         api_key: Option<String>,
 
@@ -198,6 +214,33 @@ enum Commands {
     Cache {
         #[command(subcommand)]
         cache_command: CacheCommands,
+    },
+
+    /// Store API key securely in system keychain
+    Login {
+        /// Provider to store API key for (paddleocr, zhipu)
+        #[arg(long, value_name = "PROVIDER")]
+        provider: Option<String>,
+
+        /// API key (will prompt securely if not provided)
+        #[arg(long, value_name = "API_KEY")]
+        api_key: Option<String>,
+
+        /// List stored credentials (provider names only)
+        #[arg(long)]
+        list: bool,
+
+        /// Delete stored credential for a provider
+        #[arg(long, value_name = "PROVIDER")]
+        delete: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Quiet mode: only output essential information
+        #[arg(short, long)]
+        quiet: bool,
     },
 }
 
@@ -263,6 +306,14 @@ async fn run() -> Result<()> {
             .await
         }
         Commands::Cache { cache_command } => handle_cache(cache_command).await,
+        Commands::Login { provider, api_key, list, delete, json, quiet } => handle_login(
+            provider.as_deref(),
+            api_key.as_deref(),
+            list,
+            delete.as_deref(),
+            json,
+            quiet,
+        ),
     }
 }
 
@@ -549,6 +600,14 @@ async fn handle_parse(
             }
         })
         .or_else(|| std::env::var("PROVIDER_API_KEY").ok())
+        .or_else(|| {
+            let provider_str = provider_type.as_str();
+            let key = auth::provider_key(&provider_str);
+            match auth::get_credential(key) {
+                Ok(Some(k)) => Some(k),
+                _ => None,
+            }
+        })
         .ok_or_else(|| {
             if json {
                 let error_json = ErrorJson {
@@ -556,12 +615,12 @@ async fn handle_parse(
                     error_code: ExitCode::UsageError as i32,
                     error_type: "usage_error".to_string(),
                     message: "API key must be provided".to_string(),
-                    suggestion: Some("Use --api-key flag or set ZHIPU_API_KEY, PADDLE_OCR_API_KEY, or PROVIDER_API_KEY environment variable".to_string()),
+                    suggestion: Some("Use --api-key flag, set environment variable, or run 'pdf-to-markdown login'".to_string()),
                 };
                 let _ = serde_json::to_string_pretty(&error_json).map(|s| println!("{}", s));
                 std::process::exit(ExitCode::UsageError as i32);
             }
-            anyhow!("API key must be provided via --api-key or provider-specific environment variable")
+            anyhow!("API key must be provided via --api-key, environment variable, or stored credential (run 'pdf-to-markdown login' to set up)")
         })?;
 
     std::fs::create_dir_all(&output_dir)?;
@@ -709,6 +768,191 @@ async fn handle_parse(
                     .cyan()
             );
         }
+    }
+
+    Ok(())
+}
+
+fn handle_login(
+    provider: Option<&str>,
+    api_key: Option<&str>,
+    list: bool,
+    delete: Option<&str>,
+    json: bool,
+    quiet: bool,
+) -> Result<()> {
+    // Handle --list
+    if list {
+        let providers = auth::list_credentials()?;
+        if json {
+            let output = serde_json::json!({
+                "success": true,
+                "providers": providers,
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else if providers.is_empty() {
+            println!("No stored credentials found.");
+            println!("Run 'pdf-to-markdown login --provider <PROVIDER>' to store an API key.");
+        } else {
+            println!("{}", "Stored credentials:".bold());
+            for p in &providers {
+                let name = match p.as_str() {
+                    "paddleocr" => "PaddleOCR",
+                    "zhipu" => "Zhipu (all models)",
+                    _ => p.as_str(),
+                };
+                println!("  - {}", name);
+            }
+        }
+        return Ok(());
+    }
+
+    // Handle --delete
+    if let Some(target) = delete {
+        let key = auth::provider_key(target);
+        auth::delete_credential(key)?;
+
+        // Also try delete with the raw target (in case it's a zhipu variant)
+        if key != target {
+            let _ = auth::delete_credential(target);
+        }
+
+        if json {
+            let output = serde_json::json!({
+                "success": true,
+                "action": "delete",
+                "provider": key,
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else if !quiet {
+            println!("{}", format!("Deleted stored credential for '{}'", key).green());
+        }
+        return Ok(());
+    }
+
+    // Resolve provider
+    let credential_key = if let Some(provider_str) = provider {
+        let key = auth::provider_key(provider_str);
+        // Validate that it's a known provider
+        if key != provider_str && provider_str != "zhipu" && !provider_str.starts_with("zhipu/") {
+            return Err(anyhow!(
+                "Unknown provider: {}. Supported providers: paddleocr, zhipu",
+                provider_str
+            ));
+        }
+        key.to_string()
+    } else {
+        // Interactive: select provider
+        println!("Select provider:");
+        println!("  1. PaddleOCR");
+        println!("  2. Zhipu (all models: lite/expert/prime)");
+        print!("Enter choice [1-2]: ");
+        std::io::Write::flush(&mut std::io::stdout())?;
+
+        let mut choice = String::new();
+        std::io::stdin().read_line(&mut choice)?;
+        match choice.trim() {
+            "1" => "paddleocr",
+            "2" => "zhipu",
+            _ => return Err(anyhow!("Invalid choice. Please select 1 or 2.")),
+        }
+        .to_string()
+    };
+
+    // Check if credential already exists for this provider
+    let existing = auth::get_credential(&credential_key).ok().flatten();
+    if existing.is_some() {
+        let name = match credential_key.as_str() {
+            "paddleocr" => "PaddleOCR",
+            "zhipu" => "Zhipu",
+            _ => &credential_key,
+        };
+
+        if json {
+            // Non-interactive: just overwrite, report in JSON output
+        } else if api_key.is_some() {
+            // Non-interactive with explicit key: brief notice
+            if !quiet {
+                println!(
+                    "{}",
+                    format!("An API key for {} is already stored. Overwriting.", name).yellow()
+                );
+            }
+        } else {
+            // Interactive: ask for confirmation
+            println!("{}", format!("An API key for {} is already stored.", name).yellow());
+            print!("Overwrite it? [y/N]: ");
+            std::io::Write::flush(&mut std::io::stdout())?;
+            let mut answer = String::new();
+            std::io::stdin().read_line(&mut answer)?;
+            let answer = answer.trim().to_lowercase();
+            if answer != "y" && answer != "yes" {
+                if !quiet {
+                    println!("{}", "Cancelled. Existing credential kept unchanged.".dimmed());
+                }
+                return Ok(());
+            }
+        }
+    }
+
+    // Resolve API key
+    let key = if let Some(key) = api_key {
+        key.to_string()
+    } else {
+        // Interactive: hidden input
+        let prompt = format!(
+            "Enter API key for {}: ",
+            match credential_key.as_str() {
+                "paddleocr" => "PaddleOCR",
+                "zhipu" => "Zhipu",
+                _ => &credential_key,
+            }
+        );
+
+        match rpassword::prompt_password(&prompt) {
+            Ok(k) => {
+                if k.trim().is_empty() {
+                    return Err(anyhow!("API key cannot be empty"));
+                }
+                k.trim().to_string()
+            }
+            Err(_) => {
+                // Fallback: read from STDIN directly (won't hide input)
+                eprintln!("Warning: could not read password securely (TTY not available).");
+                print!("{}", prompt);
+                std::io::Write::flush(&mut std::io::stdout())?;
+                let mut buf = String::new();
+                std::io::stdin().read_line(&mut buf)?;
+                if buf.trim().is_empty() {
+                    return Err(anyhow!("API key cannot be empty"));
+                }
+                buf.trim().to_string()
+            }
+        }
+    };
+
+    // Store the credential
+    auth::set_credential(&credential_key, &key)?;
+
+    if json {
+        let output = serde_json::json!({
+            "success": true,
+            "action": "store",
+            "provider": credential_key,
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else if !quiet {
+        let name = match credential_key.as_str() {
+            "paddleocr" => "PaddleOCR",
+            "zhipu" => "Zhipu",
+            _ => &credential_key,
+        };
+        println!("{}", format!("API key for {} stored securely in system keychain.", name).green());
+        println!();
+        println!(
+            "{}",
+            "Tip: Now you can run 'pdf-to-markdown parse document.pdf' without --api-key.".dimmed()
+        );
     }
 
     Ok(())

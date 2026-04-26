@@ -30,6 +30,7 @@ A command-line tool for converting PDF documents to Markdown with support for mu
 ## Features
 
 - Multiple provider support: PaddleOCR, Zhipu AI (lite/expert/prime)
+- Secure API key storage in system keychain (macOS/Windows/Linux)
 - Complex element parsing: text, images, tables, formulas, and more
 - Structured JSON output, meaningful exit codes, and dry-run support
 - Easy installation with one-click script for Linux/macOS/Windows
@@ -63,6 +64,41 @@ For more development information, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## API Key Configuration
 
+### Secure Login (Recommended)
+
+```bash
+# Interactive: select provider and enter API key
+pdf-to-markdown login
+
+# Store API key for a specific provider
+pdf-to-markdown login --provider paddleocr
+pdf-to-markdown login --provider zhipu
+
+# Non-interactive: specify both provider and key
+pdf-to-markdown login --provider paddleocr --api-key "your_api_key"
+
+# List stored credentials
+pdf-to-markdown login --list
+
+# Delete a stored credential
+pdf-to-markdown login --delete paddleocr
+```
+
+API keys are stored securely in the system keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service) and never saved in plaintext.
+
+### Environment Variables (Alternative)
+
+```bash
+export PADDLE_OCR_API_KEY="your_api_key"
+export ZHIPU_API_KEY="your_api_key"
+```
+
+Or pass via `--api-key` / `-k` flag:
+
+```bash
+pdf-to-markdown parse -k "your_api_key" document.pdf
+```
+
 ### PaddleOCR
 - Application URL: https://aistudio.baidu.com/paddleocr
 - Free quota: 20,000 pages per day
@@ -76,12 +112,14 @@ For more development information, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 ### Basic Usage
 
 ```bash
-# Using PaddleOCR with local file
-export PADDLE_OCR_API_KEY="your_api_key"
+# First, store your API key securely (only needed once)
+pdf-to-markdown login
+
+# Then convert PDF to Markdown
 pdf-to-markdown parse document.pdf
 
-# Using Zhipu AI with local file
-export ZHIPU_API_KEY="your_api_key"
+# Using Zhipu AI
+pdf-to-markdown login --provider zhipu
 pdf-to-markdown parse --provider zhipu/lite document.pdf
 
 # Using URL to download PDF directly
@@ -162,6 +200,28 @@ pdf-to-markdown parse document.pdf --overwrite
 
 # Disable cache temporarily
 PDF_TO_MARKDOWN_NO_CACHE=1 pdf-to-markdown parse document.pdf
+```
+
+#### `login` - Secure API Key Storage
+
+```bash
+# Interactive: select provider and enter API key
+pdf-to-markdown login
+
+# Store API key for a specific provider (interactive key input)
+pdf-to-markdown login --provider paddleocr
+
+# Store API key non-interactively
+pdf-to-markdown login --provider zhipu --api-key "your_api_key"
+
+# List stored credentials
+pdf-to-markdown login --list
+
+# Delete stored credential
+pdf-to-markdown login --delete paddleocr
+
+# JSON output
+pdf-to-markdown login --list --json
 ```
 
 #### `cache` - Cache Management
