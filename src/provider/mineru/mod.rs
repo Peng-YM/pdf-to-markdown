@@ -35,7 +35,6 @@ impl MinerUModel {
     }
 }
 
-
 pub struct MinerUProvider {
     /// Only needed for Precision API (Vlm / Pipeline). Agent API uses no auth.
     api_key: String,
@@ -216,17 +215,14 @@ impl MinerUProvider {
         // Step 1: Initiate agent file parse
         progress_cb(ProgressUpdate::new("Requesting agent upload URL from MinerU...".to_string()));
 
-        let (task_id, upload_url) =
-            agent_request_upload(&self.client, file_name, config).await?;
+        let (task_id, upload_url) = agent_request_upload(&self.client, file_name, config).await?;
 
         progress_cb(ProgressUpdate::new("Uploading file to MinerU Agent...".to_string()));
 
         // Step 2: Upload file
         agent_upload_file(&self.client, &upload_url, file_path).await?;
 
-        progress_cb(ProgressUpdate::new(
-            "File uploaded. Waiting for agent parsing...".to_string(),
-        ));
+        progress_cb(ProgressUpdate::new("File uploaded. Waiting for agent parsing...".to_string()));
 
         // Step 3: Poll until done
         sleep(std::time::Duration::from_secs(2)).await;
