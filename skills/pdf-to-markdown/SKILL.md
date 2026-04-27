@@ -62,7 +62,7 @@ The metadata output includes: title, author, subject, keywords, creator, produce
 ### Converting PDF to Markdown
 
 ```bash
-# Basic: uses default PaddleOCR provider, outputs to current directory
+# Basic: uses auto-detected provider, outputs to current directory
 pdf-to-markdown parse document.pdf
 
 # Specify output directory
@@ -116,6 +116,13 @@ The Markdown file includes YAML frontmatter with PDF metadata (title, author, et
 The tool automatically caches conversion results to avoid redundant API calls for the same PDF. Converting the same file twice costs nothing. If cache behavior seems unexpected, see [references/troubleshooting.md](references/troubleshooting.md) for cache management and troubleshooting.
 
 ## Best Practices
+
+### Default Provider
+
+When no `--provider` is specified, the tool auto-detects in this priority order:
+1. PaddleOCR API key configured → PaddleOCR
+2. MinerU API key configured → MinerU VLM
+3. No credentials → MinerU Agent (no auth needed)
 
 ### Choosing a Provider
 

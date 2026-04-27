@@ -51,7 +51,7 @@ The specified file path doesn't exist. For local files, use an absolute path or 
    - `--provider mineru` (VLM) for best quality complex documents with images
    - `--provider mineru/agent` for quick results with no API key needed
    - `--provider zhipu/expert` or `--provider zhipu/prime` for complex documents
-   - Zhipu expert/prime handle tables and formulas better than the default PaddleOCR
+   - Zhipu expert/prime handle tables and formulas better than PaddleOCR
 
 2. **Convert specific pages:** Use `--pages` to focus on the problematic section, then merge results.
 

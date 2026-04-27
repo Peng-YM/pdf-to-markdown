@@ -1,6 +1,6 @@
 # API Key Setup
 
-The tool requires an API key from one of three providers. PaddleOCR is the default and offers 20,000 free pages per day. MinerU Agent requires no API key at all.
+The tool supports three providers. When no `--provider` is specified, it auto-detects in priority order: PaddleOCR (if key set) → MinerU VLM (if key set) → MinerU Agent (no key needed). PaddleOCR offers 20,000 free pages per day.
 
 ## Provider Options
 
@@ -9,7 +9,7 @@ The tool requires an API key from one of three providers. PaddleOCR is the defau
 | MinerU VLM | `mineru` or `mineru/vlm` (recommended) | Bearer Token | https://mineru.net/apiManage/token |
 | MinerU Pipeline | `mineru/pipeline` | Bearer Token | Same as above |
 | MinerU Agent | `mineru/agent` | None (IP rate-limited) | N/A |
-| PaddleOCR | `paddleocr` (default) | Bearer Token | https://aistudio.baidu.com/paddleocr |
+| PaddleOCR | `paddleocr` | Bearer Token | https://aistudio.baidu.com/paddleocr |
 | Zhipu Lite | `zhipu/lite` | API Key | https://bigmodel.cn/usercenter/proj-mgmt/apikeys |
 | Zhipu Expert | `zhipu/expert` | Same as above | Same as above |
 | Zhipu Prime | `zhipu/prime` | Same as above | Same as above |
@@ -56,7 +56,7 @@ This means env vars override stored credentials, and the explicit flag overrides
 
 When the user needs to set up credentials, guide them through these steps:
 
-1. **Choose a provider** — PaddleOCR is recommended for new users (20,000 free pages/day, no real-name auth). MinerU Agent needs no key at all.
+1. **Choose a provider** — PaddleOCR is recommended for new users (20,000 free pages/day, no real-name auth). MinerU Agent needs no key at all and is used automatically when no other credentials are configured.
 2. **Get the API key** — Direct the user to the provider's website (see table above) to obtain a key
 3. **Store it** — Run `pdf-to-markdown login --provider paddleocr` (or `zhipu`, `mineru`) and paste the key when prompted
 4. **Verify** — Run `pdf-to-markdown login --list` to confirm the credential is stored
