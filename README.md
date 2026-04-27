@@ -60,6 +60,16 @@ curl -fsSL https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/master/inst
 
 For alternative installation methods, see [GitHub Releases](https://github.com/Peng-YM/pdf-to-markdown/releases) or build from source.
 
+### Agent Skill
+
+For AI coding agents (Claude Code, Codex, etc.), install the agent skill so the agent automatically uses pdf-to-markdown whenever it needs to read a PDF:
+
+```bash
+npx skills add Peng-YM/pdf-to-markdown
+```
+
+The skill provides the agent with installation guidance, login workflow, usage patterns, best practices, and troubleshooting — no manual configuration needed.
+
 For more development information, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## API Key Configuration
