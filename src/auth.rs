@@ -6,6 +6,8 @@ const SERVICE_NAME: &str = "pdf-to-markdown";
 pub fn provider_key(provider_type: &str) -> &str {
     if provider_type.starts_with("zhipu") {
         "zhipu"
+    } else if provider_type.starts_with("mineru") {
+        "mineru"
     } else {
         "paddleocr"
     }
@@ -56,7 +58,7 @@ mod platform {
 
     pub fn list_credentials() -> Result<Vec<String>> {
         let mut providers = Vec::new();
-        for key in &["paddleocr", "zhipu"] {
+        for key in &["paddleocr", "zhipu", "mineru"] {
             if passwords::get_generic_password(super::SERVICE_NAME, key).is_ok() {
                 providers.push(key.to_string());
             }
@@ -158,7 +160,7 @@ mod platform {
         let mut providers = Vec::new();
 
         // Check known keys in keychain
-        for key in &["paddleocr", "zhipu"] {
+        for key in &["paddleocr", "zhipu", "mineru"] {
             if let Ok(entry) = keyring::Entry::new(super::SERVICE_NAME, key) {
                 if entry.get_password().is_ok() {
                     providers.push(key.to_string());

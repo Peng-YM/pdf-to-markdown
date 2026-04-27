@@ -8,6 +8,7 @@ use pdf_to_markdown::cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
 use pdf_to_markdown::converter::ConvertWithCacheOptions;
 use pdf_to_markdown::error::{anyhow, Result};
 use pdf_to_markdown::provider::traits::*;
+use pdf_to_markdown::provider::mineru::MinerUConfig;
 use pdf_to_markdown::provider::ProviderType;
 use pdf_to_markdown::utils::{download_pdf, is_url, normalize_arxiv_url, PdfMetadata};
 use pdf_to_markdown::Converter;
@@ -99,12 +100,21 @@ EXAMPLES:
     
     # Use Zhipu lite model
     pdf-to-markdown parse --provider zhipu/lite document.pdf -o ./output/
-    
+
     # Use Zhipu expert model
     pdf-to-markdown parse --provider zhipu/expert document.pdf -o ./output/
-    
+
     # Use Zhipu prime model
     pdf-to-markdown parse --provider zhipu/prime document.pdf -o ./output/
+
+    # Use MinerU VLM model (default, Precision API)
+    pdf-to-markdown parse --provider mineru document.pdf -o ./output/
+
+    # Use MinerU pipeline model (Precision API)
+    pdf-to-markdown parse --provider mineru/pipeline document.pdf -o ./output/
+
+    # Use MinerU Agent API (lightweight, no auth needed)
+    pdf-to-markdown parse --provider mineru/agent document.pdf -o ./output/
     
     # Dry run: preview what would happen
     pdf-to-markdown parse document.pdf -o ./output/ --dry-run
@@ -135,6 +145,9 @@ EXAMPLES:
 
     # Store API key for specific provider (interactive key input)
     pdf-to-markdown login --provider paddleocr
+
+    # Store API key for MinerU (Precision API only; Agent API needs no auth)
+    pdf-to-markdown login --provider mineru
 
     # Store API key non-interactively
     pdf-to-markdown login --provider zhipu --api-key your-api-key
@@ -185,7 +198,7 @@ enum Commands {
         #[arg(long, value_name = "PAGES")]
         pages: Option<String>,
 
-        /// Provider: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime (default: paddleocr)
+        /// Provider: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime, mineru/vlm, mineru/pipeline, mineru/agent (default: paddleocr)
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
 
@@ -218,7 +231,7 @@ enum Commands {
 
     /// Store API key securely in system keychain
     Login {
-        /// Provider to store API key for (paddleocr, zhipu)
+        /// Provider to store API key for (paddleocr, zhipu, mineru)
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
 
@@ -504,13 +517,13 @@ async fn handle_parse(
                         error_code: ExitCode::UsageError as i32,
                         error_type: "usage_error".to_string(),
                         message: format!("Unsupported provider: {}", provider_str),
-                        suggestion: Some("Supported providers: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime".to_string()),
+                        suggestion: Some("Supported providers: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime, mineru/vlm, mineru/pipeline, mineru/agent".to_string()),
                     };
                     let _ = serde_json::to_string_pretty(&error_json).map(|s| println!("{}", s));
                     std::process::exit(ExitCode::UsageError as i32);
                 }
                 anyhow!(
-                    "Unsupported provider: {}. Supported providers: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime",
+                    "Unsupported provider: {}. Supported providers: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime, mineru/vlm, mineru/pipeline, mineru/agent",
                     provider_str
                 )
             })?
@@ -587,6 +600,10 @@ async fn handle_parse(
         std::env::var("ZHIPU_API_KEY").is_ok()
     );
     pdf_to_markdown::debug_print!(
+        "DEBUG: MINERU_API_KEY exists? {}",
+        std::env::var("MINERU_API_KEY").is_ok()
+    );
+    pdf_to_markdown::debug_print!(
         "DEBUG: PROVIDER_API_KEY exists? {}",
         std::env::var("PROVIDER_API_KEY").is_ok()
     );
@@ -594,9 +611,17 @@ async fn handle_parse(
     let api_key = api_key
         .map(|s| s.to_string())
         .or_else(|| {
-            match provider_type {
+            match &provider_type {
                 ProviderType::Zhipu(_) => std::env::var("ZHIPU_API_KEY").ok(),
                 ProviderType::PaddleOcr => std::env::var("PADDLE_OCR_API_KEY").ok(),
+                ProviderType::MinerU(model) => {
+                    // Agent API doesn't need auth
+                    if *model == pdf_to_markdown::provider::mineru::MinerUModel::Agent {
+                        Some(String::new())
+                    } else {
+                        std::env::var("MINERU_API_KEY").ok()
+                    }
+                }
             }
         })
         .or_else(|| std::env::var("PROVIDER_API_KEY").ok())
@@ -633,6 +658,7 @@ async fn handle_parse(
         let provider_display = match &provider_type {
             ProviderType::Zhipu(model) => format!("Zhipu ({})", model.as_str()),
             ProviderType::PaddleOcr => "PaddleOCR".to_string(),
+            ProviderType::MinerU(model) => format!("MinerU ({})", model.as_str()),
         };
         println!("{}", format!("🔧 Provider: {}", provider_display).cyan());
 
@@ -730,6 +756,31 @@ async fn handle_parse(
                 })
                 .await
         }
+        ProviderType::MinerU(model) => {
+            let config = MinerUConfig {
+                model,
+                page_ranges: page_ranges_clone.clone(),
+                ..Default::default()
+            };
+            let options = ConvertWithCacheOptions {
+                input_path: &pdf_path,
+                input_identifier: input,
+                output_dir: &output_dir,
+                config: &config,
+                provider_name: &provider_str,
+                page_ranges,
+            };
+            converter
+                .convert_with_cache(options, move |update| {
+                    let pb = pb_clone.lock().unwrap();
+                    pb.set_message(update.message);
+                    if let Some(total) = update.total {
+                        pb.set_length(total);
+                    }
+                    pb.set_position(update.current);
+                })
+                .await
+        }
     }?;
 
     pb.lock().unwrap().finish_and_clear();
@@ -799,6 +850,7 @@ fn handle_login(
                 let name = match p.as_str() {
                     "paddleocr" => "PaddleOCR",
                     "zhipu" => "Zhipu (all models)",
+                    "mineru" => "MinerU (Precision API)",
                     _ => p.as_str(),
                 };
                 println!("  - {}", name);
@@ -834,9 +886,14 @@ fn handle_login(
     let credential_key = if let Some(provider_str) = provider {
         let key = auth::provider_key(provider_str);
         // Validate that it's a known provider
-        if key != provider_str && provider_str != "zhipu" && !provider_str.starts_with("zhipu/") {
+        if key != provider_str
+            && provider_str != "zhipu"
+            && !provider_str.starts_with("zhipu/")
+            && provider_str != "mineru"
+            && !provider_str.starts_with("mineru/")
+        {
             return Err(anyhow!(
-                "Unknown provider: {}. Supported providers: paddleocr, zhipu",
+                "Unknown provider: {}. Supported providers: paddleocr, zhipu, mineru",
                 provider_str
             ));
         }
@@ -846,7 +903,8 @@ fn handle_login(
         println!("Select provider:");
         println!("  1. PaddleOCR");
         println!("  2. Zhipu (all models: lite/expert/prime)");
-        print!("Enter choice [1-2]: ");
+        println!("  3. MinerU (Precision API; Agent API needs no auth)");
+        print!("Enter choice [1-3]: ");
         std::io::Write::flush(&mut std::io::stdout())?;
 
         let mut choice = String::new();
@@ -854,7 +912,8 @@ fn handle_login(
         match choice.trim() {
             "1" => "paddleocr",
             "2" => "zhipu",
-            _ => return Err(anyhow!("Invalid choice. Please select 1 or 2.")),
+            "3" => "mineru",
+            _ => return Err(anyhow!("Invalid choice. Please select 1, 2, or 3.")),
         }
         .to_string()
     };
@@ -865,6 +924,7 @@ fn handle_login(
         let name = match credential_key.as_str() {
             "paddleocr" => "PaddleOCR",
             "zhipu" => "Zhipu",
+            "mineru" => "MinerU",
             _ => &credential_key,
         };
 
@@ -905,6 +965,7 @@ fn handle_login(
             match credential_key.as_str() {
                 "paddleocr" => "PaddleOCR",
                 "zhipu" => "Zhipu",
+                "mineru" => "MinerU",
                 _ => &credential_key,
             }
         );
@@ -945,6 +1006,7 @@ fn handle_login(
         let name = match credential_key.as_str() {
             "paddleocr" => "PaddleOCR",
             "zhipu" => "Zhipu",
+            "mineru" => "MinerU",
             _ => &credential_key,
         };
         println!("{}", format!("API key for {} stored securely in system keychain.", name).green());

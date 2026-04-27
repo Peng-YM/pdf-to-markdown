@@ -1,7 +1,9 @@
+pub mod mineru;
 pub mod paddleocr;
 pub mod traits;
 mod zhipu;
 
+pub use mineru::{MinerUConfig, MinerUModel, MinerUProvider};
 pub use paddleocr::{PaddleOcrConfig, PaddleOcrProvider};
 pub use traits::*;
 pub use zhipu::ZhipuProvider;
@@ -44,6 +46,7 @@ pub enum ProviderType {
     Zhipu(ZhipuModel),
     #[default]
     PaddleOcr,
+    MinerU(MinerUModel),
 }
 
 impl ProviderType {
@@ -51,6 +54,7 @@ impl ProviderType {
         match self {
             ProviderType::Zhipu(model) => format!("zhipu/{}", model.as_str()),
             ProviderType::PaddleOcr => "paddleocr".to_string(),
+            ProviderType::MinerU(model) => format!("mineru/{}", model.as_str()),
         }
     }
 }
@@ -72,7 +76,28 @@ impl FromStr for ProviderType {
             return Ok(ProviderType::Zhipu(ZhipuModel::Prime));
         }
 
+        if let Some(rest) = s_lower.strip_prefix("mineru/") {
+            if let Ok(model) = MinerUModel::from_str(rest) {
+                return Ok(ProviderType::MinerU(model));
+            }
+        } else if s_lower == "mineru" {
+            return Ok(ProviderType::MinerU(MinerUModel::Vlm));
+        }
+
         Err(())
+    }
+}
+
+impl FromStr for MinerUModel {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "vlm" => Ok(MinerUModel::Vlm),
+            "pipeline" => Ok(MinerUModel::Pipeline),
+            "agent" => Ok(MinerUModel::Agent),
+            _ => Err(()),
+        }
     }
 }
 
@@ -80,5 +105,6 @@ pub fn create_provider(provider_type: ProviderType, api_key: String) -> Arc<dyn 
     match provider_type {
         ProviderType::Zhipu(_) => Arc::new(ZhipuProvider::new(api_key)),
         ProviderType::PaddleOcr => Arc::new(PaddleOcrProvider::new(api_key)),
+        ProviderType::MinerU(_) => Arc::new(MinerUProvider::new(api_key)),
     }
 }
