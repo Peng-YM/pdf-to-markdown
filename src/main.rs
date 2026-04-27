@@ -157,6 +157,12 @@ EXAMPLES:
 
     # Delete stored credential
     pdf-to-markdown login --delete paddleocr
+
+    # Self-update to the latest version
+    pdf-to-markdown update
+
+    # Self-update to a specific version
+    pdf-to-markdown update --version v0.8.0
 ")]
 struct Cli {
     #[command(subcommand)]
@@ -255,6 +261,13 @@ enum Commands {
         #[arg(short, long)]
         quiet: bool,
     },
+
+    /// Self-update to the latest version (or a specific version)
+    Update {
+        /// Target version (e.g., v0.8.0). Defaults to latest release.
+        #[arg(short, long, value_name = "VERSION")]
+        version: Option<String>,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -327,6 +340,7 @@ async fn run() -> Result<()> {
             json,
             quiet,
         ),
+        Commands::Update { version } => handle_update(version.as_deref()),
     }
 }
 
@@ -1044,6 +1058,39 @@ fn handle_login(
         );
     }
 
+    Ok(())
+}
+
+fn handle_update(version: Option<&str>) -> Result<()> {
+    let install_script =
+        "https://raw.githubusercontent.com/Peng-YM/pdf-to-markdown/master/install.sh";
+
+    println!("{} Updating pdf-to-markdown…", "▸".cyan());
+    println!("  Script: {}", install_script);
+
+    let mut cmd = "curl -fsSL ".to_string();
+    cmd.push_str(install_script);
+    cmd.push_str(" | bash");
+    if let Some(v) = version {
+        cmd.push_str(" -s -- ");
+        cmd.push_str(v);
+    } else {
+        cmd.push_str(" -s");
+    }
+
+    println!();
+    let status = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&cmd)
+        .status()
+        .map_err(|e| anyhow::anyhow!("Failed to run update: {}", e))?;
+
+    if !status.success() {
+        return Err(anyhow::anyhow!("Update script exited with error"));
+    }
+
+    println!();
+    println!("{} Run `pdf-to-markdown --version` to verify.", "✔".green());
     Ok(())
 }
 
