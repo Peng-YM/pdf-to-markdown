@@ -1,7 +1,5 @@
 use crate::error::Result;
 
-const SERVICE_NAME: &str = "pdf-to-markdown";
-
 /// Map a provider type string to the credential key used for storage.
 pub fn provider_key(provider_type: &str) -> &str {
     if provider_type.starts_with("zhipu") {
@@ -14,182 +12,10 @@ pub fn provider_key(provider_type: &str) -> &str {
 }
 
 // ---------------------------------------------------------------------------
-// macOS: use security-framework directly (avoids repeated keychain prompts
-// by using SecItemAdd/SecItemCopyMatching instead of the legacy
-// SecKeychainAddGenericPassword API that keyring uses)
+// Encrypted file storage (all platforms)
 // ---------------------------------------------------------------------------
 
-#[cfg(target_os = "macos")]
 mod platform {
-    use crate::error::{anyhow, Result};
-    use security_framework::passwords;
-
-    pub fn get_credential(credential_key: &str) -> Result<Option<String>> {
-        match passwords::get_generic_password(super::SERVICE_NAME, credential_key) {
-            Ok(bytes) => Ok(Some(String::from_utf8(bytes)?)),
-            Err(e) => {
-                if e.code() == -25300 {
-                    // errSecItemNotFound — no credential stored
-                    return Ok(None);
-                }
-                crate::debug_print!("DEBUG: security-framework get failed: {}", e);
-                Err(anyhow!("Failed to read from Keychain: {}", e))
-            }
-        }
-    }
-
-    pub fn set_credential(credential_key: &str, api_key: &str) -> Result<()> {
-        passwords::set_generic_password(super::SERVICE_NAME, credential_key, api_key.as_bytes())?;
-        Ok(())
-    }
-
-    pub fn delete_credential(credential_key: &str) -> Result<()> {
-        match passwords::delete_generic_password(super::SERVICE_NAME, credential_key) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                if e.code() == -25300 {
-                    // errSecItemNotFound
-                    return Err(anyhow!("No stored credential found for '{}'", credential_key));
-                }
-                Err(anyhow!("Failed to delete from Keychain: {}", e))
-            }
-        }
-    }
-
-    pub fn list_credentials() -> Result<Vec<String>> {
-        let mut providers = Vec::new();
-        for key in &["paddleocr", "zhipu", "mineru"] {
-            if passwords::get_generic_password(super::SERVICE_NAME, key).is_ok() {
-                providers.push(key.to_string());
-            }
-        }
-        Ok(providers)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Windows & Linux: use keyring crate
-// ---------------------------------------------------------------------------
-
-#[cfg(not(target_os = "macos"))]
-mod platform {
-    use crate::error::{anyhow, Result};
-
-    pub fn get_credential(credential_key: &str) -> Result<Option<String>> {
-        // 1. Try system keychain
-        match keyring::Entry::new(super::SERVICE_NAME, credential_key) {
-            Ok(entry) => match entry.get_password() {
-                Ok(password) => return Ok(Some(password)),
-                Err(e) => {
-                    crate::debug_print!("DEBUG: keyring get_password failed: {}", e);
-                }
-            },
-            Err(e) => {
-                crate::debug_print!("DEBUG: keyring Entry::new failed: {}", e);
-            }
-        }
-
-        // 2. Fallback: encrypted file (Linux only)
-        #[cfg(target_os = "linux")]
-        {
-            if let Some(password) = super::linux_fallback::get_from_file(credential_key)? {
-                return Ok(Some(password));
-            }
-        }
-
-        Ok(None)
-    }
-
-    pub fn set_credential(credential_key: &str, api_key: &str) -> Result<()> {
-        // 1. Try system keychain
-        match keyring::Entry::new(super::SERVICE_NAME, credential_key) {
-            Ok(entry) => match entry.set_password(api_key) {
-                Ok(()) => return Ok(()),
-                Err(e) => {
-                    crate::debug_print!("DEBUG: keyring set_password failed: {}", e);
-                }
-            },
-            Err(e) => {
-                crate::debug_print!("DEBUG: keyring Entry::new failed: {}", e);
-            }
-        }
-
-        // 2. Fallback: encrypted file (Linux only)
-        #[cfg(target_os = "linux")]
-        {
-            super::linux_fallback::set_to_file(credential_key, api_key)
-        }
-
-        #[cfg(not(target_os = "linux"))]
-        Err(anyhow!(
-            "Failed to access system keychain. On Linux, ensure libdbus and libsecret are installed."
-        ))
-    }
-
-    pub fn delete_credential(credential_key: &str) -> Result<()> {
-        let mut deleted = false;
-
-        // 1. Try system keychain
-        match keyring::Entry::new(super::SERVICE_NAME, credential_key) {
-            Ok(entry) => {
-                if entry.delete_credential().is_ok() {
-                    deleted = true;
-                }
-            }
-            Err(e) => {
-                crate::debug_print!("DEBUG: keyring Entry::new failed during delete: {}", e);
-            }
-        }
-
-        // 2. Also try encrypted file (Linux only)
-        #[cfg(target_os = "linux")]
-        {
-            if super::linux_fallback::delete_from_file(credential_key)? {
-                deleted = true;
-            }
-        }
-
-        if !deleted {
-            return Err(anyhow!("No stored credential found for '{}'", credential_key));
-        }
-
-        Ok(())
-    }
-
-    pub fn list_credentials() -> Result<Vec<String>> {
-        let mut providers = Vec::new();
-
-        // Check known keys in keychain
-        for key in &["paddleocr", "zhipu", "mineru"] {
-            if let Ok(entry) = keyring::Entry::new(super::SERVICE_NAME, key) {
-                if entry.get_password().is_ok() {
-                    providers.push(key.to_string());
-                }
-            }
-        }
-
-        // Also check encrypted file (Linux only)
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(file_providers) = super::linux_fallback::list_from_file() {
-                for p in file_providers {
-                    if !providers.contains(&p) {
-                        providers.push(p);
-                    }
-                }
-            }
-        }
-
-        Ok(providers)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Linux encrypted file fallback
-// ---------------------------------------------------------------------------
-
-#[cfg(target_os = "linux")]
-mod linux_fallback {
     use crate::error::{anyhow, Result};
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Nonce};
@@ -216,14 +42,58 @@ mod linux_fallback {
         Ok(config_dir.join("credentials.enc"))
     }
 
-    fn derive_key() -> Result<[u8; 32]> {
-        let machine_id = std::fs::read_to_string("/etc/machine-id")
+    #[cfg(target_os = "linux")]
+    fn machine_id() -> String {
+        std::fs::read_to_string("/etc/machine-id")
             .or_else(|_| std::fs::read_to_string("/var/lib/dbus/machine-id"))
-            .unwrap_or_else(|_| "pdf-to-markdown-fallback-id".to_string());
+            .unwrap_or_else(|_| "pdf-to-markdown-fallback-id".to_string())
+    }
 
+    #[cfg(target_os = "macos")]
+    fn machine_id() -> String {
+        let output = std::process::Command::new("ioreg")
+            .args(["-d2", "-c", "IOPlatformExpertDevice"])
+            .output();
+        if let Ok(out) = output {
+            if let Ok(plist) = String::from_utf8(out.stdout) {
+                if let Some(line) = plist.lines().find(|l| l.contains("IOPlatformUUID")) {
+                    if let Some(start) = line.find('"') {
+                        if let Some(end) = line[start + 1..].find('"') {
+                            return line[start + 1..start + 1 + end].to_string();
+                        }
+                    }
+                }
+            }
+        }
+        "pdf-to-markdown-fallback-id".to_string()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn machine_id() -> String {
+        let output = std::process::Command::new("reg")
+            .args([
+                "query",
+                r"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography",
+                "/v",
+                "MachineGuid",
+            ])
+            .output();
+        if let Ok(out) = output {
+            if let Ok(text) = String::from_utf8(out.stdout) {
+                for line in text.lines() {
+                    if let Some(pos) = line.find("REG_SZ") {
+                        return line[pos + 6..].trim().to_string();
+                    }
+                }
+            }
+        }
+        "pdf-to-markdown-fallback-id".to_string()
+    }
+
+    fn derive_key() -> Result<[u8; 32]> {
         let mut hasher = Sha256::new();
         hasher.update(b"pdf-to-markdown-credential-v1");
-        hasher.update(machine_id.trim().as_bytes());
+        hasher.update(machine_id().trim().as_bytes());
         Ok(hasher.finalize().into())
     }
 
@@ -283,18 +153,18 @@ mod linux_fallback {
         Ok(())
     }
 
-    pub fn get_from_file(credential_key: &str) -> Result<Option<String>> {
+    pub fn get(credential_key: &str) -> Result<Option<String>> {
         let creds = read_credentials()?;
         Ok(creds.entries.get(credential_key).cloned())
     }
 
-    pub fn set_to_file(credential_key: &str, api_key: &str) -> Result<()> {
+    pub fn set(credential_key: &str, api_key: &str) -> Result<()> {
         let mut creds = read_credentials()?;
         creds.entries.insert(credential_key.to_string(), api_key.to_string());
         write_credentials(&creds)
     }
 
-    pub fn delete_from_file(credential_key: &str) -> Result<bool> {
+    pub fn delete(credential_key: &str) -> Result<bool> {
         let mut creds = read_credentials()?;
         let existed = creds.entries.remove(credential_key).is_some();
         if existed {
@@ -307,33 +177,37 @@ mod linux_fallback {
         Ok(existed)
     }
 
-    pub fn list_from_file() -> Result<Vec<String>> {
+    pub fn list() -> Result<Vec<String>> {
         let creds = read_credentials()?;
         Ok(creds.entries.keys().cloned().collect())
     }
 }
 
 // ---------------------------------------------------------------------------
-// Public API — delegates to platform-specific implementation
+// Public API
 // ---------------------------------------------------------------------------
 
 /// Retrieve a stored API key for the given credential key.
 /// Returns `Ok(None)` if no credential is stored.
 pub fn get_credential(credential_key: &str) -> Result<Option<String>> {
-    platform::get_credential(credential_key)
+    platform::get(credential_key)
 }
 
 /// Store an API key for the given credential key.
 pub fn set_credential(credential_key: &str, api_key: &str) -> Result<()> {
-    platform::set_credential(credential_key, api_key)
+    platform::set(credential_key, api_key)
 }
 
 /// Delete a stored credential.
 pub fn delete_credential(credential_key: &str) -> Result<()> {
-    platform::delete_credential(credential_key)
+    if platform::delete(credential_key)? {
+        Ok(())
+    } else {
+        Err(crate::error::anyhow!("No stored credential found for '{}'", credential_key))
+    }
 }
 
 /// List all providers that have stored credentials.
 pub fn list_credentials() -> Result<Vec<String>> {
-    platform::list_credentials()
+    platform::list()
 }

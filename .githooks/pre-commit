@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Pre-commit hook: format → lint → test
+# ---------------------------------------------------------------------------
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+staged_rust=$(git diff --cached --name-only --diff-filter=ACM -- '*.rs' 2>/dev/null || true)
+
+if [ -z "$staged_rust" ]; then
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# 1. cargo fmt (auto-fix, then stage the result)
+# ---------------------------------------------------------------------------
+echo "━━━ cargo fmt ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cargo fmt -- 2>/dev/null
+fmt_staged=()
+for f in $staged_rust; do
+    if git diff --name-only -- "$f" | grep -q .; then
+        git add -- "$f"
+        fmt_staged+=("$f")
+    fi
+done
+if [ ${#fmt_staged[@]} -gt 0 ]; then
+    echo -e "${GREEN}Formatted: ${fmt_staged[*]}${NC}"
+else
+    echo -e "${GREEN}Format OK${NC}"
+fi
+
+# ---------------------------------------------------------------------------
+# 2. cargo clippy
+# ---------------------------------------------------------------------------
+echo "━━━ cargo clippy ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cargo clippy -- -D warnings
+echo -e "${GREEN}Clippy OK${NC}"
+
+# ---------------------------------------------------------------------------
+# 3. cargo test
+# ---------------------------------------------------------------------------
+echo "━━━ cargo test ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cargo test
+echo -e "${GREEN}Tests OK${NC}"
+
+echo ""
+echo -e "${GREEN}✓ All pre-commit checks passed${NC}"

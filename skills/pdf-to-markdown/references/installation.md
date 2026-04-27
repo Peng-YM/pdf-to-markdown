@@ -50,30 +50,15 @@ cargo build --release
 
 ## Platform-Specific Notes
 
-### Credential Storage Backend
+### Credential Storage
 
-| Platform | Backend | Notes |
-|---|---|---|
-| macOS | System Keychain (security-framework) | No extra dependencies needed |
-| Linux | Secret Service (keyring crate) | See prerequisites below; encrypted file fallback available |
-| Windows | Credential Manager (keyring crate) | No extra dependencies needed |
+API keys are stored in an AES-256-GCM encrypted file, keyed to a hardware identifier for each machine. No external dependencies required.
 
-### Linux Prerequisites
-
-The secure credential storage (`pdf-to-markdown login`) depends on D-Bus and libsecret:
-
-```bash
-# Debian/Ubuntu
-sudo apt install libdbus-1-dev libsecret-1-dev
-
-# Fedora
-sudo dnf install dbus-devel libsecret-devel
-
-# Arch
-sudo pacman -S libsecret
-```
-
-If these libraries are unavailable, the tool automatically falls back to an AES-256-GCM encrypted file at `~/.config/pdf-to-markdown/credentials.enc`. This fallback is transparent — no configuration needed.
+| Platform | Storage Path |
+|---|---|
+| macOS | `~/Library/Application Support/pdf-to-markdown/credentials.enc` |
+| Linux | `~/.config/pdf-to-markdown/credentials.enc` |
+| Windows | `%APPDATA%\pdf-to-markdown\config\credentials.enc` |
 
 ### Path Configuration
 

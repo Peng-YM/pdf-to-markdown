@@ -18,7 +18,7 @@ Note: Zhipu requires real-name authentication. MinerU Agent requires no API key 
 
 ## Storing API Keys (Recommended)
 
-Use the `login` subcommand to store keys securely in the system keychain:
+Use the `login` subcommand to store keys securely in an encrypted file:
 
 ```bash
 # Interactive: prompts for provider choice and key
@@ -39,7 +39,7 @@ pdf-to-markdown login --list
 pdf-to-markdown login --delete paddleocr
 ```
 
-Once stored, you can run `pdf-to-markdown parse` without specifying `--api-key` — the tool reads from the keychain automatically.
+Once stored, you can run `pdf-to-markdown parse` without specifying `--api-key` — the tool reads from the encrypted credentials file automatically.
 
 ## API Key Resolution Order
 
@@ -48,7 +48,7 @@ When no `--api-key` is passed, the tool checks in this order:
 1. `--api-key` / `-k` flag (explicit)
 2. Provider-specific env var (`PADDLE_OCR_API_KEY`, `ZHIPU_API_KEY`, or `MINERU_API_KEY`)
 3. Generic env var (`PROVIDER_API_KEY`)
-4. System keychain (set via `pdf-to-markdown login`)
+4. Encrypted credentials file (set via `pdf-to-markdown login`)
 
 This means env vars override stored credentials, and the explicit flag overrides everything.
 

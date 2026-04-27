@@ -4,7 +4,7 @@
 
 The tool cannot find a valid API key. Resolve by one of:
 
-1. Run `pdf-to-markdown login` to store a key in the system keychain
+1. Run `pdf-to-markdown login` to store a key in the encrypted credentials file
 2. Set a provider-specific env var: `export PADDLE_OCR_API_KEY="your-key"`, `export ZHIPU_API_KEY="your-key"`, or `export MINERU_API_KEY="your-key"`
 3. Set the generic env var: `export PROVIDER_API_KEY="your-key"`
 4. Pass the key explicitly: `pdf-to-markdown parse -k "your-key" document.pdf`
@@ -21,25 +21,15 @@ This prevents accidental overwrites. Options:
 
 In automated scripts, always use `--overwrite`.
 
-## Linux: Keychain / Secret Service Errors
+## Credentials Storage
 
-If `pdf-to-markdown login` fails on Linux:
+API keys are stored in an AES-256-GCM encrypted file:
 
-1. **Verify system dependencies are installed:**
-   ```bash
-   # Debian/Ubuntu
-   sudo apt install libdbus-1-dev libsecret-1-dev
-   # Fedora
-   sudo dnf install dbus-devel libsecret-devel
-   ```
+- macOS: `~/Library/Application Support/pdf-to-markdown/credentials.enc`
+- Linux: `~/.config/pdf-to-markdown/credentials.enc`
+- Windows: `%APPDATA%\pdf-to-markdown\config\credentials.enc`
 
-2. **Check if D-Bus is running:**
-   ```bash
-   echo $DBUS_SESSION_BUS_ADDRESS
-   ```
-   If empty, the Secret Service backend cannot connect. This can happen in headless environments or SSH sessions.
-
-3. **Fallback:** The tool automatically uses an AES-256-GCM encrypted file at `~/.config/pdf-to-markdown/credentials.enc` when the keychain is unavailable. If both fail, set the API key via environment variable instead.
+The encryption key is derived from a hardware identifier unique to each machine. If the file is corrupted or the machine changes, re-run `pdf-to-markdown login` to re-store credentials.
 
 ## "Input file does not exist"
 

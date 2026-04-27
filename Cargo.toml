@@ -1,9 +1,10 @@
 [package]
 name = "pdf-to-markdown"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 
 [dependencies]
+aes-gcm = "0.10"
 anyhow = "1.0"
 async-trait = "0.1"
 chrono = "0.4"
@@ -15,6 +16,7 @@ image = "0.25"
 lopdf = "0.40"
 pdfium-auto = "0.3"
 pdfium-render = "0.8"
+rand = "0.8"
 regex = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 rpassword = "7.4"
@@ -26,17 +28,6 @@ tempfile = "3.10"
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "time", "fs"] }
 walkdir = "2.5"
 zip = "2.1"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "3"
-
-[target.'cfg(target_os = "windows")'.dependencies]
-keyring = { version = "3.6", default-features = false, features = ["windows-native"] }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3.6", default-features = false, features = ["sync-secret-service"] }
-aes-gcm = "0.10"
-rand = "0.8"
 
 [[bin]]
 name = "pdf-to-markdown"

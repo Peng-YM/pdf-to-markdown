@@ -31,7 +31,7 @@
 
 - Multiple provider support: MinerU (VLM/Pipeline/Agent), PaddleOCR, Zhipu AI (lite/expert/prime)
 - **Zero-config ready** — MinerU Agent requires no API key; smart auto-detection picks the best available provider
-- Secure API key storage in system keychain (macOS/Windows/Linux)
+- Secure API key storage in encrypted credentials file (AES-256-GCM)
 - Complex element parsing: text, images, tables, formulas, and more
 - Structured JSON output, meaningful exit codes, and dry-run support
 - Easy installation with one-click script for Linux/macOS/Windows
@@ -98,7 +98,7 @@ pdf-to-markdown login --list
 pdf-to-markdown login --delete paddleocr
 ```
 
-API keys are stored securely in the system keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service) and never saved in plaintext.
+API keys are stored in an AES-256-GCM encrypted file and never saved in plaintext.
 
 ### Environment Variables (Alternative)
 

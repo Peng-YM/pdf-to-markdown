@@ -95,7 +95,7 @@ pdf-to-markdown parse document.pdf -o ./output/ --quiet
 # Overwrite existing output without confirmation
 pdf-to-markdown parse document.pdf -o ./output/ --overwrite
 
-# Provide API key inline (bypasses keychain)
+# Provide API key inline (bypasses stored credentials)
 pdf-to-markdown parse -k "your-api-key" document.pdf
 ```
 
