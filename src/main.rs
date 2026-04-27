@@ -83,7 +83,7 @@ EXAMPLES:
     # Get metadata as JSON
     pdf-to-markdown metadata document.pdf --json
     
-    # Parse entire PDF to Markdown using default provider (local file)
+    # Parse entire PDF to Markdown using auto-detected provider (local file)
     pdf-to-markdown parse document.pdf
     
     # Parse PDF from URL
@@ -198,7 +198,7 @@ enum Commands {
         #[arg(long, value_name = "PAGES")]
         pages: Option<String>,
 
-        /// Provider: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime, mineru/vlm, mineru/pipeline, mineru/agent (default: paddleocr)
+        /// Provider: paddleocr, zhipu/lite, zhipu/expert, zhipu/prime, mineru/vlm, mineru/pipeline, mineru/agent. Default: auto-detect (PaddleOCR > MinerU VLM > MinerU Agent)
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
 
@@ -450,6 +450,33 @@ fn print_metadata(metadata: &PdfMetadata) {
     }
 }
 
+/// Resolve the default provider based on available credentials.
+///
+/// Priority:
+/// 1. PaddleOCR API key configured → PaddleOCR
+/// 2. MinerU API key configured → MinerU VLM
+/// 3. No credentials at all → MinerU Agent (no auth needed)
+fn resolve_default_provider() -> ProviderType {
+    use pdf_to_markdown::provider::mineru::MinerUModel;
+
+    // Check PaddleOCR credentials
+    if std::env::var("PADDLE_OCR_API_KEY").is_ok()
+        || auth::get_credential("paddleocr").ok().flatten().is_some()
+    {
+        return ProviderType::PaddleOcr;
+    }
+
+    // Check MinerU credentials (Precision API)
+    if std::env::var("MINERU_API_KEY").is_ok()
+        || auth::get_credential("mineru").ok().flatten().is_some()
+    {
+        return ProviderType::MinerU(MinerUModel::Vlm);
+    }
+
+    // Fallback: MinerU Agent (no auth needed)
+    ProviderType::MinerU(MinerUModel::Agent)
+}
+
 async fn handle_parse(
     input: &str,
     output_dir: Option<&Path>,
@@ -528,7 +555,7 @@ async fn handle_parse(
                 )
             })?
     } else {
-        ProviderType::default()
+        resolve_default_provider()
     };
 
     let output_dir = output_dir.unwrap_or_else(|| Path::new(".")).to_path_buf();

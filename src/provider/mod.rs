@@ -41,10 +41,9 @@ impl FromStr for ZhipuModel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProviderType {
     Zhipu(ZhipuModel),
-    #[default]
     PaddleOcr,
     MinerU(MinerUModel),
 }
