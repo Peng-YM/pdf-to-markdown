@@ -6,7 +6,7 @@ description: >-
 
 # PDF to Markdown Converter
 
-A Rust CLI tool that converts PDF documents to Markdown using AI document parsing providers (PaddleOCR and Zhipu AI). It extracts text, tables, formulas, images, and preserves document structure. Optimized for academic papers.
+A Rust CLI tool that converts PDF documents to Markdown using AI document parsing providers (MinerU, PaddleOCR, and Zhipu AI). It extracts text, tables, formulas, images, and preserves document structure. Optimized for academic papers.
 
 ## Before First Use
 
@@ -71,6 +71,8 @@ pdf-to-markdown parse document.pdf -o ./output/
 # Use a specific provider/model
 pdf-to-markdown parse --provider zhipu/lite document.pdf
 pdf-to-markdown parse --provider zhipu/expert document.pdf
+pdf-to-markdown parse --provider mineru document.pdf
+pdf-to-markdown parse --provider mineru/agent document.pdf  # no auth needed
 
 # Convert specific pages only
 pdf-to-markdown parse document.pdf --pages 1-5,10,15-20 -o ./output/
@@ -117,10 +119,13 @@ The tool automatically caches conversion results to avoid redundant API calls fo
 
 ### Choosing a Provider
 
-- **PaddleOCR**: Best default choice. 20,000 free pages/day. Good for general documents, academic papers. No real-name auth needed.
+- **MinerU VLM** (`mineru`): Best quality for complex documents. Precision API with VLM model, extracts images in ZIP. Requires API token. Recommended for academic papers.
+- **MinerU Pipeline** (`mineru/pipeline`): Traditional pipeline, good alternative to VLM. Requires API token.
+- **MinerU Agent** (`mineru/agent`): Lightweight, zero-config — no API key needed. IP rate-limited, 10MB/20 pages max. Returns markdown only (no image extraction).
+- **PaddleOCR**: Reliable workhorse. 20,000 free pages/day. Good for general documents, academic papers. No real-name auth needed.
 - **Zhipu Lite**: Faster, lower cost. Good for simple documents.
 - **Zhipu Expert**: Better quality for complex layouts, tables, formulas.
-- **Zhipu Prime**: Best quality. Use for highly complex documents with heavy math or intricate table structures.
+- **Zhipu Prime**: Best quality from Zhipu. Use for highly complex documents with heavy math or intricate table structures.
 
 ### Cost Efficiency
 

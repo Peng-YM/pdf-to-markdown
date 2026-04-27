@@ -5,7 +5,7 @@
 The tool cannot find a valid API key. Resolve by one of:
 
 1. Run `pdf-to-markdown login` to store a key in the system keychain
-2. Set a provider-specific env var: `export PADDLE_OCR_API_KEY="your-key"` or `export ZHIPU_API_KEY="your-key"`
+2. Set a provider-specific env var: `export PADDLE_OCR_API_KEY="your-key"`, `export ZHIPU_API_KEY="your-key"`, or `export MINERU_API_KEY="your-key"`
 3. Set the generic env var: `export PROVIDER_API_KEY="your-key"`
 4. Pass the key explicitly: `pdf-to-markdown parse -k "your-key" document.pdf`
 
@@ -48,6 +48,8 @@ The specified file path doesn't exist. For local files, use an absolute path or 
 ## Conversion Produces Poor Results
 
 1. **Try a different provider/model:**
+   - `--provider mineru` (VLM) for best quality complex documents with images
+   - `--provider mineru/agent` for quick results with no API key needed
    - `--provider zhipu/expert` or `--provider zhipu/prime` for complex documents
    - Zhipu expert/prime handle tables and formulas better than the default PaddleOCR
 
@@ -84,7 +86,7 @@ PDF_TO_MARKDOWN_NO_CACHE=1 pdf-to-markdown parse document.pdf
 ## Slow Conversion
 
 - Large PDFs: Use `--pages` to convert in batches
-- Network issues: Providers are cloud APIs — conversion speed depends on network latency to PaddleOCR or Zhipu servers
+- Network issues: Providers are cloud APIs — conversion speed depends on network latency to MinerU, PaddleOCR, or Zhipu servers
 - Check cache: `pdf-to-markdown cache status` — if the cache is very large, clearing it may improve index lookup speed
 - Zhipu: The polling interval is 3 seconds — large documents with many pages complete in the background; use the progress bar to monitor
 
