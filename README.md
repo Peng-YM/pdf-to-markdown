@@ -21,7 +21,7 @@
   </a>
 </p>
 
-A command-line tool for converting PDF documents to Markdown with support for multiple document parsing service providers, built with a modular architecture.
+**pdf-to-markdown** is a PDF-to-Markdown converter purpose-built for AI Agents. Powered by PaddleOCR and Zhipu AI's state-of-the-art document parsing, it accurately extracts text, tables, formulas, images, and document structure — handling complex layouts from academic papers to technical reports with ease. No local GPU required: a single command turns any PDF into clean, structured Markdown. The go-to tool for AI Agents reading and processing PDFs.
 
 <p align="center">
   <img src="assets/demo.png" alt="Demo" width="800" />
