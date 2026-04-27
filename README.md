@@ -21,7 +21,7 @@
   </a>
 </p>
 
-**pdf-to-markdown** is a PDF-to-Markdown converter purpose-built for AI Agents. Powered by PaddleOCR and Zhipu AI's state-of-the-art document parsing, it accurately extracts text, tables, formulas, images, and document structure — handling complex layouts from academic papers to technical reports with ease. No local GPU required: a single command turns any PDF into clean, structured Markdown. The go-to tool for AI Agents reading and processing PDFs.
+**pdf-to-markdown** is a PDF-to-Markdown converter purpose-built for AI Agents. Powered by MinerU, PaddleOCR, and Zhipu AI's state-of-the-art document parsing, it accurately extracts text, tables, formulas, images, and document structure — handling complex layouts from academic papers to technical reports with ease. No local GPU required: a single command turns any PDF into clean, structured Markdown. The go-to tool for AI Agents reading and processing PDFs.
 
 <p align="center">
   <img src="assets/demo.png" alt="Demo" width="800" />
@@ -29,7 +29,7 @@
 
 ## Features
 
-- Multiple provider support: PaddleOCR, Zhipu AI (lite/expert/prime)
+- Multiple provider support: MinerU (VLM/Pipeline/Agent), PaddleOCR, Zhipu AI (lite/expert/prime)
 - Secure API key storage in system keychain (macOS/Windows/Linux)
 - Complex element parsing: text, images, tables, formulas, and more
 - Structured JSON output, meaningful exit codes, and dry-run support
@@ -83,6 +83,7 @@ pdf-to-markdown login
 # Store API key for a specific provider
 pdf-to-markdown login --provider paddleocr
 pdf-to-markdown login --provider zhipu
+pdf-to-markdown login --provider mineru
 
 # Non-interactive: specify both provider and key
 pdf-to-markdown login --provider paddleocr --api-key "your_api_key"
@@ -101,6 +102,7 @@ API keys are stored securely in the system keychain (macOS Keychain / Windows Cr
 ```bash
 export PADDLE_OCR_API_KEY="your_api_key"
 export ZHIPU_API_KEY="your_api_key"
+export MINERU_API_KEY="your_api_key"  # Precision API only; Agent API needs no key
 ```
 
 Or pass via `--api-key` / `-k` flag:
@@ -108,6 +110,12 @@ Or pass via `--api-key` / `-k` flag:
 ```bash
 pdf-to-markdown parse -k "your_api_key" document.pdf
 ```
+
+### MinerU
+- Application URL: https://mineru.net/apiManage/token
+- Models: VLM (recommended), Pipeline, Agent (lightweight, no auth)
+- Agent API: No token required, IP rate-limited, 10MB/20 pages max
+- Precision API: 1,000 pages/day priority, ZIP output with images
 
 ### PaddleOCR
 - Application URL: https://aistudio.baidu.com/paddleocr
@@ -131,6 +139,13 @@ pdf-to-markdown parse document.pdf
 # Using Zhipu AI
 pdf-to-markdown login --provider zhipu
 pdf-to-markdown parse --provider zhipu/lite document.pdf
+
+# Using MinerU VLM (best quality, requires token)
+pdf-to-markdown login --provider mineru
+pdf-to-markdown parse --provider mineru document.pdf
+
+# Using MinerU Agent (lightweight, no auth needed)
+pdf-to-markdown parse --provider mineru/agent document.pdf
 
 # Using URL to download PDF directly
 pdf-to-markdown parse https://example.com/document.pdf
@@ -195,6 +210,9 @@ pdf-to-markdown parse --provider paddleocr document.pdf
 pdf-to-markdown parse --provider zhipu/lite document.pdf
 pdf-to-markdown parse --provider zhipu/expert document.pdf
 pdf-to-markdown parse --provider zhipu/prime document.pdf
+pdf-to-markdown parse --provider mineru document.pdf
+pdf-to-markdown parse --provider mineru/pipeline document.pdf
+pdf-to-markdown parse --provider mineru/agent document.pdf
 
 # Dry run to preview operations
 pdf-to-markdown parse document.pdf --dry-run
