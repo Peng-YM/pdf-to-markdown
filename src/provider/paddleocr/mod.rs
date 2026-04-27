@@ -5,6 +5,7 @@ use api::*;
 use models::*;
 
 use crate::error::{anyhow, Result};
+use crate::pdf_render;
 use crate::provider::traits::*;
 use crate::utils;
 
@@ -193,22 +194,51 @@ impl DocumentProvider for PaddleOcrProvider {
 
         let output_temp_dir = tempdir()?;
 
-        for (line_idx, line) in lines.iter().enumerate() {
+        // 不同 JSONL 行处理文档的不同段，需累计计算真实页码
+        let mut page_offset: u32 = 0;
+
+        for line in lines.iter() {
             let line_result: JsonlLine = serde_json::from_str(line)?;
+
+            let line_page_count = line_result.result.layout_parsing_results.len() as u32;
 
             for (layout_idx, layout) in line_result.result.layout_parsing_results.iter().enumerate()
             {
                 // 保存 Markdown 文本，替换图片引用
                 let mut md_text = layout.markdown.text.clone();
 
-                // 下载并保存图片
-                for (img_path, img_url) in &layout.markdown.images {
-                    let img_bytes = download_image(&self.client, img_url).await?;
+                // 真实 PDF 页码 = 累计偏移 + 行内索引
+                let actual_page = page_offset + layout_idx as u32;
 
+                // 下载并保存图片，优先从原始 PDF 截取高分辨率图片
+                for (img_path, img_url) in &layout.markdown.images {
                     // 把路径里的 / 替换成 _，避免创建子目录
                     let safe_img_name = img_path.replace("/", "_");
-                    let img_filename =
-                        format!("image_{}_{}_{}", line_idx, layout_idx, safe_img_name);
+
+                    // 尝试从文件名中解析 bbox，从原始 PDF 截取高清图
+                    // 可通过 PDF_TO_MARKDOWN_NO_PDF_CROP=1 关闭
+                    // 可通过 PDF_TO_MARKDOWN_PDF_CROP_DPI 调节 DPI（默认 300）
+                    let high_res_bytes: Option<Vec<u8>> = if pdf_render::is_pdf_crop_disabled() {
+                        None
+                    } else {
+                        pdf_render::parse_bbox_from_image_path(img_path).and_then(|bbox| {
+                            pdf_render::extract_high_res_image(
+                                &input_path,
+                                actual_page,
+                                bbox,
+                                layout.pruned_result.width,
+                                layout.pruned_result.height,
+                            )
+                        })
+                    };
+
+                    let img_bytes = if let Some(bytes) = high_res_bytes {
+                        bytes
+                    } else {
+                        download_image(&self.client, img_url).await?
+                    };
+
+                    let img_filename = format!("page{}_{}", actual_page, safe_img_name);
                     let img_path_on_disk = output_temp_dir.path().join(&img_filename);
                     tokio::fs::write(&img_path_on_disk, img_bytes).await?;
 
@@ -218,23 +248,10 @@ impl DocumentProvider for PaddleOcrProvider {
                     images.insert(img_filename.clone(), img_path_on_disk);
                 }
 
-                if let Some(ref output_imgs) = layout.output_images {
-                    for (img_name, img_url) in output_imgs {
-                        let img_bytes = download_image(&self.client, img_url).await?;
-
-                        // 把路径里的 / 替换成 _，避免创建子目录
-                        let safe_img_name = img_name.replace("/", "_");
-                        let img_filename =
-                            format!("output_{}_{}_{}", line_idx, layout_idx, safe_img_name);
-                        let img_path_on_disk = output_temp_dir.path().join(&img_filename);
-                        tokio::fs::write(&img_path_on_disk, img_bytes).await?;
-
-                        images.insert(img_filename.clone(), img_path_on_disk);
-                    }
-                }
-
                 markdown_texts.push(md_text);
             }
+
+            page_offset += line_page_count;
         }
 
         // 合并所有 Markdown 文本

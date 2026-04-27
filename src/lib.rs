@@ -12,6 +12,7 @@ pub mod auth;
 pub mod cache;
 pub mod converter;
 pub mod error;
+pub mod pdf_render;
 pub mod provider;
 pub mod utils;
 

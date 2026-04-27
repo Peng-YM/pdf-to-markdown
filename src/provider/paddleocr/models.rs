@@ -73,9 +73,15 @@ pub struct JsonlResult {
 
 #[derive(Debug, Deserialize)]
 pub struct LayoutParsingResult {
+    #[serde(rename = "prunedResult")]
+    pub pruned_result: PrunedResult,
     pub markdown: MarkdownData,
-    #[serde(rename = "outputImages")]
-    pub output_images: Option<HashMap<String, String>>, // img_name -> url
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PrunedResult {
+    pub width: f64,
+    pub height: f64,
 }
 
 #[derive(Debug, Deserialize)]

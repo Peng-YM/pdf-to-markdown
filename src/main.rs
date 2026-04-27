@@ -67,7 +67,7 @@ struct DryRunResultJson {
 #[derive(Parser, Debug)]
 #[command(name = "pdf-to-markdown")]
 #[command(about = "PDF to Markdown converter with progressive information disclosure")]
-#[command(version = "0.5.0")]
+#[command(version = "0.6.0")]
 #[command(after_help = "\
 EXAMPLES:
     # Get PDF metadata and table of contents (local file)
