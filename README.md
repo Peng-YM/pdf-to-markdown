@@ -21,7 +21,7 @@
   </a>
 </p>
 
-**pdf-to-markdown** is a PDF-to-Markdown converter purpose-built for AI Agents. Powered by MinerU, PaddleOCR, and Zhipu AI's state-of-the-art document parsing, it accurately extracts text, tables, formulas, images, and document structure — handling complex layouts from academic papers to technical reports with ease. No local GPU required: a single command turns any PDF into clean, structured Markdown. The go-to tool for AI Agents reading and processing PDFs.
+**pdf-to-markdown** is a PDF-to-Markdown converter purpose-built for AI Agents. Powered by MinerU, PaddleOCR, and Zhipu AI's state-of-the-art document parsing, it accurately extracts text, tables, formulas, images, and document structure — handling complex layouts from academic papers to technical reports with ease. No local GPU required, **no API key needed** (batteries-included with MinerU Agent). A single command turns any PDF into clean, structured Markdown. The go-to tool for AI Agents reading and processing PDFs.
 
 <p align="center">
   <img src="assets/demo.png" alt="Demo" width="800" />
@@ -30,6 +30,7 @@
 ## Features
 
 - Multiple provider support: MinerU (VLM/Pipeline/Agent), PaddleOCR, Zhipu AI (lite/expert/prime)
+- **Zero-config ready** — MinerU Agent requires no API key; smart auto-detection picks the best available provider
 - Secure API key storage in system keychain (macOS/Windows/Linux)
 - Complex element parsing: text, images, tables, formulas, and more
 - Structured JSON output, meaningful exit codes, and dry-run support
@@ -73,6 +74,8 @@ The skill provides the agent with installation guidance, login workflow, usage p
 For more development information, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## API Key Configuration
+
+API keys are **optional** — MinerU Agent works out of the box with no setup. Add a key for higher quality or more daily capacity.
 
 ### Secure Login (Recommended)
 
@@ -130,11 +133,11 @@ pdf-to-markdown parse -k "your_api_key" document.pdf
 ### Basic Usage
 
 ```bash
-# First, store your API key securely (only needed once)
-pdf-to-markdown login
-
-# Then convert PDF to Markdown
+# Convert PDF to Markdown — no setup needed (uses MinerU Agent by default)
 pdf-to-markdown parse document.pdf
+
+# Optional: add an API key for higher quality or more capacity
+pdf-to-markdown login
 
 # Using Zhipu AI
 pdf-to-markdown login --provider zhipu
