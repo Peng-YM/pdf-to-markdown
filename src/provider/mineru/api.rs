@@ -17,20 +17,16 @@ pub async fn precision_request_upload(
     api_key: &str,
     file_name: &str,
     model_version: &str,
-    is_ocr: Option<bool>,
-    enable_formula: Option<bool>,
-    enable_table: Option<bool>,
-    language: Option<String>,
-    no_cache: Option<bool>,
+    config: &super::MinerUConfig,
 ) -> Result<(String, String)> {
     let request = FileUrlsBatchRequest {
         files: vec![FileItem { name: file_name.to_string() }],
         model_version: model_version.to_string(),
-        is_ocr,
-        enable_formula,
-        enable_table,
-        language,
-        no_cache,
+        is_ocr: config.is_ocr,
+        enable_formula: config.enable_formula,
+        enable_table: config.enable_table,
+        language: config.language.clone(),
+        no_cache: None,
     };
 
     let response = client
@@ -64,14 +60,14 @@ pub async fn precision_request_upload(
 }
 
 /// Step 2: Upload file bytes to the signed URL (PUT, no Content-Type).
-pub async fn precision_upload_file(client: &Client, upload_url: &str, file_path: &Path) -> Result<()> {
+pub async fn precision_upload_file(
+    client: &Client,
+    upload_url: &str,
+    file_path: &Path,
+) -> Result<()> {
     let file_bytes = tokio::fs::read(file_path).await?;
 
-    let response = client
-        .put(upload_url)
-        .body(file_bytes)
-        .send()
-        .await?;
+    let response = client.put(upload_url).body(file_bytes).send().await?;
 
     let status = response.status();
     if !status.is_success() {
@@ -91,11 +87,8 @@ pub async fn precision_poll_batch(
     let url = format!("{}/extract-results/batch/{}", PRECISION_BASE, batch_id);
 
     loop {
-        let response = client
-            .get(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .send()
-            .await?;
+        let response =
+            client.get(&url).header("Authorization", format!("Bearer {}", api_key)).send().await?;
 
         let status = response.status();
         let body: BatchResultsResponse = response.json().await.map_err(|e| {
@@ -112,9 +105,8 @@ pub async fn precision_poll_batch(
 
         let data = body.data.ok_or_else(|| anyhow!("MinerU batch results returned no data"))?;
 
-        let all_done = data.extract_result.iter().all(|item| {
-            item.state == "done" || item.state == "failed"
-        });
+        let all_done =
+            data.extract_result.iter().all(|item| item.state == "done" || item.state == "failed");
 
         if all_done {
             return Ok(data);
@@ -143,35 +135,31 @@ pub async fn download_zip(client: &Client, zip_url: &str) -> Result<Vec<u8>> {
 pub async fn agent_request_upload(
     client: &Client,
     file_name: &str,
-    language: Option<String>,
-    page_range: Option<String>,
-    enable_table: Option<bool>,
-    is_ocr: Option<bool>,
-    enable_formula: Option<bool>,
+    config: &super::MinerUConfig,
 ) -> Result<(String, String)> {
     let request = AgentFileRequest {
         file_name: file_name.to_string(),
-        language,
-        page_range,
-        enable_table,
-        is_ocr,
-        enable_formula,
+        language: config.language.clone(),
+        page_range: None, // Agent only supports single range
+        enable_table: config.enable_table,
+        is_ocr: config.is_ocr,
+        enable_formula: config.enable_formula,
     };
 
-    let response = client
-        .post(format!("{}/agent/parse/file", AGENT_BASE))
-        .json(&request)
-        .send()
-        .await?;
+    let response =
+        client.post(format!("{}/agent/parse/file", AGENT_BASE)).json(&request).send().await?;
 
     let status = response.status();
     if status == 429 {
-        return Err(anyhow!("MinerU Agent API rate limited (HTTP 429). Try again later or use the Precision API."));
+        return Err(anyhow!(
+            "MinerU Agent API rate limited (HTTP 429). Try again later or use the Precision API."
+        ));
     }
 
-    let body: AgentFileResponse = response.json().await.map_err(|e| {
-        anyhow!("Failed to parse agent file response (status {}): {}", status, e)
-    })?;
+    let body: AgentFileResponse = response
+        .json()
+        .await
+        .map_err(|e| anyhow!("Failed to parse agent file response (status {}): {}", status, e))?;
 
     if body.code != 0 {
         return Err(anyhow!("MinerU Agent API failed: code={}", body.code));
@@ -185,11 +173,7 @@ pub async fn agent_request_upload(
 pub async fn agent_upload_file(client: &Client, upload_url: &str, file_path: &Path) -> Result<()> {
     let file_bytes = tokio::fs::read(file_path).await?;
 
-    let response = client
-        .put(upload_url)
-        .body(file_bytes)
-        .send()
-        .await?;
+    let response = client.put(upload_url).body(file_bytes).send().await?;
 
     let status = response.status();
     if !status.is_success() {
@@ -201,10 +185,7 @@ pub async fn agent_upload_file(client: &Client, upload_url: &str, file_path: &Pa
 }
 
 /// Step 3: Poll agent task status until done.
-pub async fn agent_poll_status(
-    client: &Client,
-    task_id: &str,
-) -> Result<AgentStatusData> {
+pub async fn agent_poll_status(client: &Client, task_id: &str) -> Result<AgentStatusData> {
     let url = format!("{}/agent/parse/{}", AGENT_BASE, task_id);
 
     loop {

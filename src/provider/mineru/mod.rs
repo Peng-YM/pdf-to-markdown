@@ -14,9 +14,10 @@ use tempfile::tempdir;
 use tokio::time::sleep;
 
 /// MinerU model variant.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum MinerUModel {
     /// Precision API, visual language model (recommended, default)
+    #[default]
     Vlm,
     /// Precision API, traditional pipeline
     Pipeline,
@@ -34,11 +35,6 @@ impl MinerUModel {
     }
 }
 
-impl Default for MinerUModel {
-    fn default() -> Self {
-        MinerUModel::Vlm
-    }
-}
 
 pub struct MinerUProvider {
     /// Only needed for Precision API (Vlm / Pipeline). Agent API uses no auth.
@@ -120,22 +116,15 @@ impl DocumentProvider for MinerUProvider {
             file_path.to_path_buf()
         };
 
-        let file_name = input_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("document.pdf");
+        let file_name = input_path.file_name().and_then(|n| n.to_str()).unwrap_or("document.pdf");
 
         match config.model {
             MinerUModel::Agent => {
-                self.parse_via_agent(&input_path, file_name, config, &mut progress_cb)
-                    .await
+                self.parse_via_agent(&input_path, file_name, config, &mut progress_cb).await
             }
             MinerUModel::Vlm | MinerUModel::Pipeline => {
-                let model_version = if config.model == MinerUModel::Vlm {
-                    "vlm"
-                } else {
-                    "pipeline"
-                };
+                let model_version =
+                    if config.model == MinerUModel::Vlm { "vlm" } else { "pipeline" };
                 self.parse_via_precision(
                     &input_path,
                     file_name,
@@ -159,31 +148,20 @@ impl MinerUProvider {
         progress_cb: &mut Box<dyn FnMut(ProgressUpdate) + Send>,
     ) -> Result<ParseResult> {
         // Step 1: Get signed upload URL
-        progress_cb(ProgressUpdate::new(
-            "Requesting upload URL from MinerU...".to_string(),
-        ));
+        progress_cb(ProgressUpdate::new("Requesting upload URL from MinerU...".to_string()));
 
-        let (batch_id, upload_url) = precision_request_upload(
-            &self.client,
-            &self.api_key,
-            file_name,
-            model_version,
-            config.is_ocr,
-            config.enable_formula,
-            config.enable_table,
-            config.language.clone(),
-            None, // no_cache: default to false
-        )
-        .await?;
+        let (batch_id, upload_url) =
+            precision_request_upload(&self.client, &self.api_key, file_name, model_version, config)
+                .await?;
 
-        progress_cb(ProgressUpdate::new(format!("Uploading file to MinerU...")));
+        progress_cb(ProgressUpdate::new("Uploading file to MinerU...".to_string()));
 
         // Step 2: Upload file
         precision_upload_file(&self.client, &upload_url, file_path).await?;
 
-        progress_cb(ProgressUpdate::new(format!(
-            "File uploaded. Waiting for parsing to complete..."
-        )));
+        progress_cb(ProgressUpdate::new(
+            "File uploaded. Waiting for parsing to complete...".to_string(),
+        ));
 
         // Step 3: Poll until done
         sleep(std::time::Duration::from_secs(2)).await;
@@ -196,10 +174,7 @@ impl MinerUProvider {
             .iter()
             .find(|item| item.state == "done")
             .ok_or_else(|| {
-                let failed = batch_result
-                    .extract_result
-                    .iter()
-                    .find(|item| item.state == "failed");
+                let failed = batch_result.extract_result.iter().find(|item| item.state == "failed");
                 match failed {
                     Some(f) => anyhow!(
                         "MinerU parsing failed: {}",
@@ -209,10 +184,7 @@ impl MinerUProvider {
                 }
             })?;
 
-        let total_pages = result_item
-            .extract_progress
-            .as_ref()
-            .and_then(|p| p.total_pages);
+        let total_pages = result_item.extract_progress.as_ref().and_then(|p| p.total_pages);
         progress_cb(ProgressUpdate::new(format!(
             "Parsing complete! Total pages: {}",
             total_pages.unwrap_or(0)
@@ -242,50 +214,34 @@ impl MinerUProvider {
         progress_cb: &mut Box<dyn FnMut(ProgressUpdate) + Send>,
     ) -> Result<ParseResult> {
         // Step 1: Initiate agent file parse
-        progress_cb(ProgressUpdate::new(
-            "Requesting agent upload URL from MinerU...".to_string(),
-        ));
+        progress_cb(ProgressUpdate::new("Requesting agent upload URL from MinerU...".to_string()));
 
-        let (task_id, upload_url) = agent_request_upload(
-            &self.client,
-            file_name,
-            config.language.clone(),
-            None, // page_range: Agent only supports single range, skip for multi-range
-            config.enable_table,
-            config.is_ocr,
-            config.enable_formula,
-        )
-        .await?;
+        let (task_id, upload_url) =
+            agent_request_upload(&self.client, file_name, config).await?;
 
-        progress_cb(ProgressUpdate::new(format!(
-            "Uploading file to MinerU Agent..."
-        )));
+        progress_cb(ProgressUpdate::new("Uploading file to MinerU Agent...".to_string()));
 
         // Step 2: Upload file
         agent_upload_file(&self.client, &upload_url, file_path).await?;
 
-        progress_cb(ProgressUpdate::new(format!(
-            "File uploaded. Waiting for agent parsing..."
-        )));
+        progress_cb(ProgressUpdate::new(
+            "File uploaded. Waiting for agent parsing...".to_string(),
+        ));
 
         // Step 3: Poll until done
         sleep(std::time::Duration::from_secs(2)).await;
 
         let status = agent_poll_status(&self.client, &task_id).await?;
 
-        let total_pages = status
-            .extract_progress
-            .as_ref()
-            .and_then(|p| p.total_pages);
+        let total_pages = status.extract_progress.as_ref().and_then(|p| p.total_pages);
         progress_cb(ProgressUpdate::new(format!(
             "Agent parsing complete! Total pages: {}",
             total_pages.unwrap_or(0)
         )));
 
         // Step 4: Download markdown from CDN
-        let markdown_url = status
-            .markdown_url
-            .ok_or_else(|| anyhow!("No markdown URL in Agent result"))?;
+        let markdown_url =
+            status.markdown_url.ok_or_else(|| anyhow!("No markdown URL in Agent result"))?;
 
         progress_cb(ProgressUpdate::new("Downloading markdown...".to_string()));
 
@@ -296,11 +252,7 @@ impl MinerUProvider {
         let images = HashMap::new();
         let output_temp_dir = tempdir()?;
 
-        Ok(ParseResult {
-            markdown,
-            images,
-            temp_dir: Some(output_temp_dir),
-        })
+        Ok(ParseResult { markdown, images, temp_dir: Some(output_temp_dir) })
     }
 }
 
@@ -410,9 +362,5 @@ async fn extract_zip_contents(zip_bytes: Vec<u8>) -> Result<ParseResult> {
         images.insert(file_stem, local_path);
     }
 
-    Ok(ParseResult {
-        markdown,
-        images,
-        temp_dir: Some(output_dir),
-    })
+    Ok(ParseResult { markdown, images, temp_dir: Some(output_dir) })
 }

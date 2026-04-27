@@ -20,5 +20,7 @@ pub use auth::{delete_credential, get_credential, list_credentials, provider_key
 pub use cache::{CacheManager, CACHE_DISABLE_ENV_VAR};
 pub use converter::{ConvertWithCacheOptions, Converter};
 pub use error::{anyhow, Result};
-pub use provider::{DocumentProvider, MinerUModel, ParseResult, ProgressUpdate, ProviderType, ZhipuModel};
+pub use provider::{
+    DocumentProvider, MinerUModel, ParseResult, ProgressUpdate, ProviderType, ZhipuModel,
+};
 pub use utils::{download_pdf, is_url, normalize_arxiv_url, PdfMetadata};
