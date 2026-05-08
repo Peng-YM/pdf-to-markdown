@@ -111,6 +111,20 @@ output-dir/
 
 The Markdown file includes YAML frontmatter with PDF metadata (title, author, etc.) automatically prepended. Image references are relative paths to `images/`.
 
+> **⚠️ Batch conversion warning:** Every `parse` call writes its output to a file named `doc.md` (plus an `images/` subfolder) inside the output directory. When converting **multiple PDFs**, you **must** pass a distinct `-o <dir>` for each call. If you omit `-o`, all conversions default to the current directory and each successive call **overwrites** the previous `doc.md` and its images. For example:
+>
+> ```bash
+> # ✅ Correct — each PDF gets its own output directory
+> pdf-to-markdown parse paper1.pdf -o ./output/paper1/
+> pdf-to-markdown parse paper2.pdf -o ./output/paper2/
+> pdf-to-markdown parse paper3.pdf -o ./output/paper3/
+>
+> # ❌ Wrong — paper2 overwrites paper1, paper3 overwrites paper2
+> pdf-to-markdown parse paper1.pdf
+> pdf-to-markdown parse paper2.pdf
+> pdf-to-markdown parse paper3.pdf
+> ```
+
 ### Caching
 
 The tool automatically caches conversion results to avoid redundant API calls for the same PDF. Converting the same file twice costs nothing. If cache behavior seems unexpected, see [references/troubleshooting.md](references/troubleshooting.md) for cache management and troubleshooting.
