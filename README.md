@@ -1,5 +1,7 @@
 # PDF to Markdown Converter
 
+<p align="right"><a href="./README_zh.md">中文文档</a></p>
+
 <p align="center">
   <a href="https://github.com/Peng-YM/pdf-to-markdown/stargazers">
     <img src="https://img.shields.io/github/stars/Peng-YM/pdf-to-markdown?style=flat-square" alt="Stars">
